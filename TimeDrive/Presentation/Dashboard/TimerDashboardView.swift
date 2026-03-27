@@ -152,21 +152,31 @@ private struct TimerHeaderContainerView: View {
 }
 
 struct WindowAccessor: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
-            if let window = view.window,
-               let appDelegate = NSApp.delegate as? AppDelegate {
-                appDelegate.attach(window: window)
-            }
+            context.coordinator.attachIfNeeded(from: view)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            if let window = nsView.window,
-               let appDelegate = NSApp.delegate as? AppDelegate {
+        context.coordinator.attachIfNeeded(from: nsView)
+    }
+
+    final class Coordinator {
+        private weak var attachedWindow: NSWindow?
+
+        func attachIfNeeded(from view: NSView) {
+            guard let window = view.window else { return }
+            guard attachedWindow !== window else { return }
+            attachedWindow = window
+
+            if let appDelegate = NSApp.delegate as? AppDelegate {
                 appDelegate.attach(window: window)
             }
         }
