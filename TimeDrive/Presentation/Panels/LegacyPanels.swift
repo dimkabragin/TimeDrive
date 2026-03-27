@@ -14,7 +14,7 @@ struct TasksView: View {
 
     var body: some View {
         VStack {
-            Picker("Filter", selection: $viewModel.filter) {
+            Picker(String(localized: "field.status"), selection: $viewModel.filter) {
                 ForEach(TaskFilter.allCases) { filter in
                     Text(filter.title).tag(filter)
                 }
@@ -41,7 +41,7 @@ struct TasksView: View {
 
                         Spacer()
 
-                        Button("Start") {
+                        Button(String(localized: "task.start")) {
                             viewModel.quickStart(task: task)
                         }
                         .buttonStyle(.borderedProminent)
@@ -56,7 +56,7 @@ struct TasksView: View {
                     .padding(.bottom)
             }
         }
-        .navigationTitle("Tasks")
+        .navigationTitle(String(localized: "tasks.title"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -121,7 +121,7 @@ struct ProjectsView: View {
             }
             .onDelete(perform: viewModel.deleteProjects)
         }
-        .navigationTitle("Projects")
+        .navigationTitle(String(localized: "projects.title"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -227,7 +227,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(String(localized: "settings.title"))
         .onAppear {
             viewModel.load()
         }
@@ -240,28 +240,28 @@ struct SyncStatusView: View {
     let onSyncNowTapped: () -> Void
 
     var body: some View {
-        Section("Sync Status") {
+        Section(String(localized: "settings.sync.section")) {
             HStack {
-                Text("Connectivity")
+                Text(String(localized: "sync.connectivity"))
                 Spacer()
-                Text(snapshot.isOnlinePlaceholder ? "Online" : "Offline")
+                Text(snapshot.isOnlinePlaceholder ? String(localized: "sync.online") : String(localized: "sync.offline"))
                     .foregroundStyle(snapshot.isOnlinePlaceholder ? .green : .orange)
             }
 
             HStack {
-                Text("Pending operations")
+                Text(String(localized: "sync.pending"))
                 Spacer()
                 Text("\(snapshot.pendingOperations)")
             }
 
             HStack {
-                Text("Last sync")
+                Text(String(localized: "sync.lastSync"))
                 Spacer()
                 Text(snapshot.lastSyncText)
                     .foregroundStyle(.secondary)
             }
 
-            Button(isSyncingNow ? "Syncing..." : "Sync now") {
+            Button(isSyncingNow ? String(localized: "sync.syncing") : String(localized: "sync.now")) {
                 onSyncNowTapped()
             }
             .disabled(isSyncingNow)

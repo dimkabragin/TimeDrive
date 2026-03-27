@@ -13,29 +13,29 @@ struct TaskEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Title", text: $title)
-                TextField("Notes", text: $notes)
+                TextField(String(localized: "field.title"), text: $title)
+                TextField(String(localized: "field.notes"), text: $notes)
 
-                Picker("Project", selection: $projectId) {
-                    Text("No Project").tag(UUID?.none)
+                Picker(String(localized: "field.project"), selection: $projectId) {
+                    Text(String(localized: "tasks.noProject")).tag(UUID?.none)
                     ForEach(projects, id: \.id) { project in
                         Text(project.name).tag(Optional(project.id))
                     }
                 }
 
-                Picker("Status", selection: $status) {
+                Picker(String(localized: "field.status"), selection: $status) {
                     ForEach(TaskStatus.allCases, id: \.rawValue) { taskStatus in
                         Text(taskStatus.rawValue).tag(taskStatus)
                     }
                 }
             }
-            .navigationTitle("New Task")
+            .navigationTitle(String(localized: "editor.task.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button(String(localized: "action.cancel"), action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: onSave)
+                    Button(String(localized: "action.save"), action: onSave)
                         .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

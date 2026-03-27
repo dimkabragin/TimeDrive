@@ -9,7 +9,7 @@ struct CompactProjectsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Projects")
+                Text(String(localized: "projects.title"))
                     .font(.headline)
 
                 Spacer()
@@ -26,7 +26,7 @@ struct CompactProjectsPanel: View {
             }
 
             if viewModel.projects.isEmpty {
-                CompactEmptyState(text: "No projects yet")
+                CompactEmptyState(text: String(localized: "projects.empty"))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {

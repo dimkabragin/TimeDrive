@@ -6,7 +6,11 @@ final class SettingsViewModel: ObservableObject {
     @Published var workDurationMinutes: Int = 25
     @Published var breakDurationMinutes: Int = 5
     @Published var autoStartNext: Bool = false
-    @Published var syncStatus = SyncStatusSnapshot(isOnlinePlaceholder: false, pendingOperations: 0, lastSyncText: "Not available")
+    @Published var syncStatus = SyncStatusSnapshot(
+        isOnlinePlaceholder: false,
+        pendingOperations: 0,
+        lastSyncText: String(localized: "sync.notAvailable")
+    )
     @Published var isSyncingNow: Bool = false
     @Published var errorMessage: String?
 
@@ -14,6 +18,12 @@ final class SettingsViewModel: ObservableObject {
     private let syncRepository: SyncRepository
     private let timerUseCases: TimerUseCases
     private let syncEngine: SyncEngine
+    private static let lastSyncFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .medium
+        return formatter
+    }()
 
     init(
         settingsRepository: SettingsRepository,
@@ -87,10 +97,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     private func formatLastSync(_ date: Date?) -> String {
-        guard let date else { return "Not synced yet" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .medium
-        return formatter.string(from: date)
+        guard let date else { return String(localized: "sync.notSyncedYet") }
+        return Self.lastSyncFormatter.string(from: date)
     }
 }

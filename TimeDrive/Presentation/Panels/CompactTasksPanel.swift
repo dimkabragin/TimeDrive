@@ -11,7 +11,7 @@ struct CompactTasksPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Tasks")
+                Text(String(localized: "tasks.title"))
                     .font(.headline)
 
                 Spacer()
@@ -39,7 +39,7 @@ struct CompactTasksPanel: View {
             }
 
             if viewModel.filteredTasks.isEmpty {
-                CompactEmptyState(text: "No tasks yet")
+                CompactEmptyState(text: String(localized: "tasks.empty"))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
@@ -68,6 +68,8 @@ struct CompactTasksPanel: View {
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.small)
                                     .disabled(task.status == .done)
+                                    .accessibilityLabel(String(localized: "task.start"))
+                                    .accessibilityHint(task.status == .done ? String(localized: "task.startHint.completed") : String(localized: "task.startHint.active"))
                                 }
 
                                 HStack {

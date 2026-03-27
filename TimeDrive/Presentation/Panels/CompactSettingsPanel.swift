@@ -6,22 +6,22 @@ struct CompactSettingsPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Settings")
+                Text(String(localized: "settings.title"))
                     .font(.headline)
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Timer")
+                    Text(String(localized: "settings.timer.section"))
                         .font(.subheadline.weight(.semibold))
 
                     Stepper(value: $viewModel.workDurationMinutes, in: 1...180) {
-                        Text("Work: \(viewModel.workDurationMinutes) min")
+                        Text(String(format: String(localized: "settings.workFormat"), String(viewModel.workDurationMinutes)))
                     }
 
                     Stepper(value: $viewModel.breakDurationMinutes, in: 1...60) {
-                        Text("Break: \(viewModel.breakDurationMinutes) min")
+                        Text(String(format: String(localized: "settings.breakFormat"), String(viewModel.breakDurationMinutes)))
                     }
 
-                    Button("Save Durations") {
+                    Button(String(localized: "settings.saveDurations")) {
                         viewModel.saveDurations()
                     }
                     .buttonStyle(.borderedProminent)
@@ -30,12 +30,12 @@ struct CompactSettingsPanel: View {
                 .panelSectionStyle()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Behavior")
+                    Text(String(localized: "settings.behavior.section"))
                         .font(.subheadline.weight(.semibold))
 
-                    Toggle("Auto-start next session", isOn: $viewModel.autoStartNext)
+                    Toggle(String(localized: "settings.autoStart"), isOn: $viewModel.autoStartNext)
 
-                    Button("Apply") {
+                    Button(String(localized: "settings.apply")) {
                         viewModel.saveAutoStartNext()
                     }
                     .buttonStyle(.bordered)
@@ -44,14 +44,14 @@ struct CompactSettingsPanel: View {
                 .panelSectionStyle()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Sync")
+                    Text(String(localized: "settings.sync.section"))
                         .font(.subheadline.weight(.semibold))
 
-                    detailRow(title: "Connectivity", value: viewModel.syncStatus.isOnlinePlaceholder ? "Online" : "Offline")
-                    detailRow(title: "Pending", value: "\(viewModel.syncStatus.pendingOperations)")
-                    detailRow(title: "Last sync", value: viewModel.syncStatus.lastSyncText)
+                    detailRow(title: String(localized: "sync.connectivity"), value: viewModel.syncStatus.isOnlinePlaceholder ? String(localized: "sync.online") : String(localized: "sync.offline"))
+                    detailRow(title: String(localized: "sync.pending"), value: "\(viewModel.syncStatus.pendingOperations)")
+                    detailRow(title: String(localized: "sync.lastSync"), value: viewModel.syncStatus.lastSyncText)
 
-                    Button(viewModel.isSyncingNow ? "Syncing..." : "Sync now") {
+                    Button(viewModel.isSyncingNow ? String(localized: "sync.syncing") : String(localized: "sync.now")) {
                         viewModel.syncNow()
                     }
                     .buttonStyle(.bordered)
@@ -80,4 +80,3 @@ struct CompactSettingsPanel: View {
         .font(.caption)
     }
 }
-

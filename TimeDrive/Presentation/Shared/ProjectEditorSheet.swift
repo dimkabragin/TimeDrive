@@ -10,16 +10,16 @@ struct ProjectEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $name)
-                TextField("Color (optional)", text: $color)
+                TextField(String(localized: "field.name"), text: $name)
+                TextField(String(localized: "field.colorOptional"), text: $color)
             }
-            .navigationTitle("New Project")
+            .navigationTitle(String(localized: "editor.project.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button(String(localized: "action.cancel"), action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: onSave)
+                    Button(String(localized: "action.save"), action: onSave)
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

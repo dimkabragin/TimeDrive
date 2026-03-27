@@ -35,7 +35,7 @@ final class TasksViewModel: ObservableObject {
         guard let projectId,
               let project = projects.first(where: { $0.id == projectId })
         else {
-            return "No Project"
+            return String(localized: "tasks.noProject")
         }
         return project.name
     }

@@ -15,8 +15,11 @@ struct TimerHeaderView: View {
                     Text(mainTimerText)
                         .font(.system(size: 78, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .layoutPriority(1)
+                        .accessibilityLabel(String(localized: "timer.current"))
+                        .accessibilityValue(mainTimerText)
 
                     if let snapshot, snapshot.isInExtraTime {
                         Text("+\(formatClock(snapshot.extraSec))")
@@ -27,7 +30,7 @@ struct TimerHeaderView: View {
                         Text(currentTaskTitle)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .lineLimit(2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -45,7 +48,8 @@ struct TimerHeaderView: View {
                 .buttonStyle(.plain)
                 .contentShape(Circle())
                 .focusEffectDisabled()
-                .accessibilityLabel(snapshot == nil ? "Start timer" : "Pause timer")
+                .accessibilityLabel(snapshot == nil ? String(localized: "timer.start") : String(localized: "timer.pause"))
+                .accessibilityHint(String(localized: "timer.actionHint"))
             }
 
             HStack(spacing: 0) {
@@ -62,6 +66,8 @@ struct TimerHeaderView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(panel.title)
+                    .accessibilityValue(activePanel == panel ? String(localized: "selection.selected") : String(localized: "selection.notSelected"))
                 }
             }
             .padding(3)
@@ -72,7 +78,7 @@ struct TimerHeaderView: View {
                 Text(errorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
-                    .lineLimit(2)
+                    .lineLimit(3)
             }
         }
         .padding(.leading, 16)
@@ -98,4 +104,3 @@ struct TimerHeaderView: View {
         return String(format: "%02d:%02d", minutes, secs)
     }
 }
-

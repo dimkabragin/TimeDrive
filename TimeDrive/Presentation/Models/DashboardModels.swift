@@ -10,10 +10,10 @@ enum TaskFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: return "All"
-        case .todo: return "To Do"
-        case .inProgress: return "In Progress"
-        case .done: return "Done"
+        case .all: return String(localized: "tasks.filter.all")
+        case .todo: return String(localized: "tasks.filter.todo")
+        case .inProgress: return String(localized: "tasks.filter.inProgress")
+        case .done: return String(localized: "tasks.filter.done")
         }
     }
 }
@@ -28,11 +28,11 @@ enum DashboardPanel: String, Identifiable, CaseIterable {
     var title: String {
         switch self {
         case .tasks:
-            return "Tasks"
+            return String(localized: "tasks.title")
         case .projects:
-            return "Projects"
+            return String(localized: "projects.title")
         case .settings:
-            return "Settings"
+            return String(localized: "settings.title")
         }
     }
 }

@@ -92,8 +92,8 @@ struct TimerDashboardView: View {
 
     private var titleBarModeSlider: some View {
         HStack(spacing: 4) {
-            titleBarModeItem(title: "Work", isActive: timerViewModel.snapshot?.mode == .work, color: .blue)
-            titleBarModeItem(title: "Pause", isActive: timerViewModel.snapshot?.mode == .break, color: .green)
+            titleBarModeItem(title: String(localized: "panel.work"), isActive: timerViewModel.snapshot?.mode == .work, color: .blue)
+            titleBarModeItem(title: String(localized: "panel.pause"), isActive: timerViewModel.snapshot?.mode == .break, color: .green)
         }
         .padding(3)
         .background(Color.primary.opacity(0.08))
