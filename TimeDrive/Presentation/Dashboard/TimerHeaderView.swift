@@ -1,0 +1,101 @@
+import SwiftUI
+
+struct TimerHeaderView: View {
+    let snapshot: ActiveTimerSnapshot?
+    let currentTaskTitle: String?
+    let activePanel: DashboardPanel?
+    let errorMessage: String?
+    let onToggleTimer: () -> Void
+    let onSelectPanel: (DashboardPanel) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(mainTimerText)
+                        .font(.system(size: 78, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
+
+                    if let snapshot, snapshot.isInExtraTime {
+                        Text("+\(formatClock(snapshot.extraSec))")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .monospacedDigit()
+                    } else if let currentTaskTitle, !currentTaskTitle.isEmpty {
+                        Text(currentTaskTitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: 0)
+
+                Button(action: onToggleTimer) {
+                    Image(systemName: snapshot == nil ? "play.fill" : "pause.fill")
+                        .font(.system(size: 30, weight: .bold))
+                        .frame(width: 88, height: 88)
+                        .foregroundStyle(.white)
+                        .background(snapshot == nil ? Color.accentColor : Color.orange)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+                .focusEffectDisabled()
+                .accessibilityLabel(snapshot == nil ? "Start timer" : "Pause timer")
+            }
+
+            HStack(spacing: 0) {
+                ForEach(DashboardPanel.allCases) { panel in
+                    Button {
+                        onSelectPanel(panel)
+                    } label: {
+                        Text(panel.title)
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 7)
+                        .foregroundStyle(activePanel == panel ? Color.white : Color.primary)
+                        .background(activePanel == panel ? Color.accentColor : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(3)
+            .background(Color.primary.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+        .padding(.trailing, 20)
+    }
+
+    private var mainTimerText: String {
+        guard let snapshot else {
+            return "25:00"
+        }
+        if snapshot.isInExtraTime {
+            return "00:00"
+        }
+        return formatClock(max(0, snapshot.remainingSec))
+    }
+
+    private func formatClock(_ totalSeconds: Int) -> String {
+        let seconds = max(0, totalSeconds)
+        let minutes = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
