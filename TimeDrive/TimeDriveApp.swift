@@ -69,7 +69,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard self.window !== window else { return }
         self.window = window
         window.delegate = self
-        window.isReleasedWhenClosed = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.closeButton)?.isHidden = false
@@ -81,13 +80,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func toggleWindowVisibility() {
-        let targetWindow = resolvedWindow()
-        guard let targetWindow else { return }
-        if targetWindow.isVisible {
-            targetWindow.orderOut(nil)
+        guard let window else { return }
+        if window.isVisible {
+            window.orderOut(nil)
         } else {
             NSApp.activate(ignoringOtherApps: true)
-            targetWindow.makeKeyAndOrderFront(nil)
+            window.makeKeyAndOrderFront(nil)
         }
     }
 
@@ -158,19 +156,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let minutes = seconds / 60
         let secs = seconds % 60
         return String(format: "%02d:%02d", minutes, secs)
-    }
-
-    private func resolvedWindow() -> NSWindow? {
-        if let window {
-            return window
-        }
-
-        let candidate = NSApp.windows.first { window in
-            window.canBecomeMain
-        }
-        if let candidate {
-            attach(window: candidate)
-        }
-        return candidate
     }
 }
