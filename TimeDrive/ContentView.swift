@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import AppKit
 
 struct ContentView: View {
     private let appContainer: AppContainer
@@ -17,42 +18,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView {
-            NavigationStack {
-                TimerView(viewModel: TimerScreenViewModel(useCases: appContainer.timerUseCases, taskRepository: appContainer.taskRepository))
-            }
-            .tabItem {
-                Label("Timer", systemImage: "timer")
-            }
-
-            NavigationStack {
-                TasksView(viewModel: TasksViewModel(taskRepository: appContainer.taskRepository, projectRepository: appContainer.projectRepository, timerUseCases: appContainer.timerUseCases))
-            }
-            .tabItem {
-                Label("Tasks", systemImage: "checklist")
-            }
-
-            NavigationStack {
-                ProjectsView(viewModel: ProjectsViewModel(projectRepository: appContainer.projectRepository, taskRepository: appContainer.taskRepository))
-            }
-            .tabItem {
-                Label("Projects", systemImage: "folder")
-            }
-
-            NavigationStack {
-                SettingsView(
-                    viewModel: SettingsViewModel(
-                        settingsRepository: appContainer.settingsRepository,
-                        syncRepository: appContainer.syncRepository,
-                        timerUseCases: appContainer.timerUseCases,
-                        syncEngine: appContainer.syncEngine
-                    )
-                )
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape")
-            }
-        }
+        TimerDashboardView(appContainer: appContainer)
     }
 }
 
@@ -388,111 +354,263 @@ final class SettingsViewModel: ObservableObject {
     }
 }
 
-struct TimerView: View {
-    @StateObject private var viewModel: TimerScreenViewModel
-    @State private var showTaskSwitcher = false
+enum DashboardPanel: String, Identifiable, CaseIterable {
+    case tasks
+    case projects
+    case settings
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .tasks:
+            return "Tasks"
+        case .projects:
+            return "Projects"
+        case .settings:
+            return "Settings"
+        }
+    }
+}
+
+struct TimerDashboardView: View {
+    @StateObject private var timerViewModel: TimerScreenViewModel
+    @StateObject private var tasksViewModel: TasksViewModel
+    @StateObject private var projectsViewModel: ProjectsViewModel
+    @StateObject private var settingsViewModel: SettingsViewModel
+    @State private var activePanel: DashboardPanel?
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    init(viewModel: TimerScreenViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    init(appContainer: AppContainer) {
+        _timerViewModel = StateObject(
+            wrappedValue: TimerScreenViewModel(
+                useCases: appContainer.timerUseCases,
+                taskRepository: appContainer.taskRepository
+            )
+        )
+        _tasksViewModel = StateObject(
+            wrappedValue: TasksViewModel(
+                taskRepository: appContainer.taskRepository,
+                projectRepository: appContainer.projectRepository,
+                timerUseCases: appContainer.timerUseCases
+            )
+        )
+        _projectsViewModel = StateObject(
+            wrappedValue: ProjectsViewModel(
+                projectRepository: appContainer.projectRepository,
+                taskRepository: appContainer.taskRepository
+            )
+        )
+        _settingsViewModel = StateObject(
+            wrappedValue: SettingsViewModel(
+                settingsRepository: appContainer.settingsRepository,
+                syncRepository: appContainer.syncRepository,
+                timerUseCases: appContainer.timerUseCases,
+                syncEngine: appContainer.syncEngine
+            )
+        )
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            if let snapshot = viewModel.snapshot {
-                Text(snapshot.mode == .work ? "Work" : "Break")
-                    .font(.headline)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(snapshot.mode == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-                    .clipShape(Capsule())
+        VStack(spacing: 0) {
+            TimerHeaderView(
+                snapshot: timerViewModel.snapshot,
+                currentTaskTitle: timerViewModel.currentTask?.title,
+                activePanel: activePanel,
+                errorMessage: timerViewModel.errorMessage,
+                onToggleTimer: toggleTimer,
+                onSelectPanel: togglePanel
+            )
 
-                Text(formatMainTimer(snapshot: snapshot))
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+            if let activePanel {
+                Divider()
+                    .padding(.horizontal, 16)
 
-                if snapshot.isInExtraTime {
-                    Text("+\(formatClock(snapshot.extraSec))")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.orange)
-                        .monospacedDigit()
-                }
-
-                VStack(spacing: 4) {
-                    Text("Current task")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(viewModel.currentTask?.title ?? "No task selected")
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                }
-            } else {
-                Text("No active session")
-                    .font(.headline)
+                DashboardBodyView(
+                    activePanel: activePanel,
+                    tasksViewModel: tasksViewModel,
+                    projectsViewModel: projectsViewModel,
+                    settingsViewModel: settingsViewModel
+                )
+                .padding(16)
             }
-
-            HStack {
-                Button("Start") {
-                    viewModel.startWorkWithoutTask()
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Stop") {
-                    viewModel.stopTimer()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            HStack {
-                Button("Break Now") {
-                    viewModel.skipToBreak()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Switch Task") {
-                    showTaskSwitcher = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.switchableTasks.isEmpty)
-            }
-
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .foregroundStyle(.red)
-                    .font(.footnote)
-            }
-
-            Spacer()
         }
-        .padding()
-        .navigationTitle("Timer")
+        .frame(width: 384, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Color(.windowBackgroundColor))
+        .background(WindowAccessor())
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                titleBarModeSlider
+            }
+            .sharedBackgroundVisibility(.hidden)
+        }
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
-            viewModel.restore()
+            timerViewModel.restore()
         }
         .onReceive(ticker) { now in
-            viewModel.safeRefresh(now: now)
+            timerViewModel.safeRefresh(now: now)
         }
-        .sheet(isPresented: $showTaskSwitcher) {
-            NavigationStack {
-                List(viewModel.switchableTasks, id: \.id) { task in
-                    Button(task.title) {
-                        viewModel.switchTask(to: task.id)
-                        showTaskSwitcher = false
-                    }
-                }
-                .navigationTitle("Switch Task")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") {
-                            showTaskSwitcher = false
-                        }
-                    }
-                }
+        .onChange(of: activePanel) { _, newValue in
+            switch newValue {
+            case .tasks:
+                tasksViewModel.load()
+            case .projects:
+                projectsViewModel.load()
+            case .settings:
+                settingsViewModel.load()
+            case nil:
+                break
             }
         }
     }
 
-    private func formatMainTimer(snapshot: ActiveTimerSnapshot) -> String {
+    private func toggleTimer() {
+        if timerViewModel.snapshot == nil {
+            timerViewModel.startWorkWithoutTask()
+        } else {
+            timerViewModel.stopTimer()
+        }
+    }
+
+    private func togglePanel(_ panel: DashboardPanel) {
+        if activePanel == panel {
+            activePanel = nil
+        } else {
+            activePanel = panel
+        }
+    }
+
+    private var titleBarModeSlider: some View {
+        HStack(spacing: 4) {
+            titleBarModeItem(title: "Work", isActive: timerViewModel.snapshot?.mode == .work, color: .blue)
+            titleBarModeItem(title: "Pause", isActive: timerViewModel.snapshot?.mode == .break, color: .green)
+        }
+        .padding(3)
+        .background(Color.primary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func titleBarModeItem(title: String, isActive: Bool, color: Color) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .frame(width: 54)
+            .padding(.vertical, 6)
+            .foregroundStyle(isActive ? Color.white : Color.secondary)
+            .background(isActive ? color : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
+struct WindowAccessor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window,
+               let appDelegate = NSApp.delegate as? AppDelegate {
+                appDelegate.attach(window: window)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            if let window = nsView.window,
+               let appDelegate = NSApp.delegate as? AppDelegate {
+                appDelegate.attach(window: window)
+            }
+        }
+    }
+}
+
+struct TimerHeaderView: View {
+    let snapshot: ActiveTimerSnapshot?
+    let currentTaskTitle: String?
+    let activePanel: DashboardPanel?
+    let errorMessage: String?
+    let onToggleTimer: () -> Void
+    let onSelectPanel: (DashboardPanel) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(mainTimerText)
+                        .font(.system(size: 78, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
+
+                    if let snapshot, snapshot.isInExtraTime {
+                        Text("+\(formatClock(snapshot.extraSec))")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .monospacedDigit()
+                    } else if let currentTaskTitle, !currentTaskTitle.isEmpty {
+                        Text(currentTaskTitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: 0)
+
+                Button(action: onToggleTimer) {
+                    Image(systemName: snapshot == nil ? "play.fill" : "pause.fill")
+                        .font(.system(size: 30, weight: .bold))
+                        .frame(width: 88, height: 88)
+                        .foregroundStyle(.white)
+                        .background(snapshot == nil ? Color.accentColor : Color.orange)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+                .focusEffectDisabled()
+                .accessibilityLabel(snapshot == nil ? "Start timer" : "Pause timer")
+            }
+
+            HStack(spacing: 0) {
+                ForEach(DashboardPanel.allCases) { panel in
+                    Button {
+                        onSelectPanel(panel)
+                    } label: {
+                        Text(panel.title)
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 7)
+                        .foregroundStyle(activePanel == panel ? Color.white : Color.primary)
+                        .background(activePanel == panel ? Color.accentColor : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(3)
+            .background(Color.primary.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+        .padding(.trailing, 20)
+    }
+
+    private var mainTimerText: String {
+        guard let snapshot else {
+            return "25:00"
+        }
         if snapshot.isInExtraTime {
             return "00:00"
         }
@@ -504,6 +622,370 @@ struct TimerView: View {
         let minutes = seconds / 60
         let secs = seconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
+struct DashboardBodyView: View {
+    let activePanel: DashboardPanel
+    @ObservedObject var tasksViewModel: TasksViewModel
+    @ObservedObject var projectsViewModel: ProjectsViewModel
+    @ObservedObject var settingsViewModel: SettingsViewModel
+
+    var body: some View {
+        Group {
+            switch activePanel {
+            case .tasks:
+                CompactTasksPanel(viewModel: tasksViewModel)
+            case .projects:
+                CompactProjectsPanel(viewModel: projectsViewModel)
+            case .settings:
+                CompactSettingsPanel(viewModel: settingsViewModel)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+struct CompactTasksPanel: View {
+    @ObservedObject var viewModel: TasksViewModel
+    @State private var showCreateTask = false
+    @State private var newTitle = ""
+    @State private var newNotes = ""
+    @State private var newProjectId: UUID?
+    @State private var newStatus: TaskStatus = .todo
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Tasks")
+                    .font(.headline)
+
+                Spacer()
+
+                Menu {
+                    ForEach(TaskFilter.allCases) { filter in
+                        Button(filter.title) {
+                            viewModel.filter = filter
+                        }
+                    }
+                } label: {
+                    Label(viewModel.filter.title, systemImage: "line.3.horizontal.decrease.circle")
+                }
+                .menuStyle(.borderlessButton)
+
+                Button {
+                    showCreateTask = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            if viewModel.filteredTasks.isEmpty {
+                CompactEmptyState(text: "No tasks yet")
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(viewModel.filteredTasks, id: \.id) { task in
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(alignment: .top, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(task.title)
+                                            .font(.subheadline.weight(.semibold))
+                                            .lineLimit(2)
+                                        Text(viewModel.projectName(for: task.projectId))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+
+                                    Spacer(minLength: 0)
+
+                                    Button {
+                                        viewModel.quickStart(task: task)
+                                    } label: {
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .frame(width: 30, height: 30)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                    .disabled(task.status == .done)
+                                }
+
+                                HStack {
+                                    Menu(task.status.rawValue) {
+                                        ForEach(TaskStatus.allCases, id: \.rawValue) { status in
+                                            Button(status.rawValue) {
+                                                viewModel.updateStatus(for: task, status: status)
+                                            }
+                                        }
+                                    }
+                                    .menuStyle(.borderlessButton)
+
+                                    Spacer()
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.primary.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                    }
+                }
+            }
+
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .sheet(isPresented: $showCreateTask) {
+            NavigationStack {
+                Form {
+                    TextField("Title", text: $newTitle)
+                    TextField("Notes", text: $newNotes)
+
+                    Picker("Project", selection: $newProjectId) {
+                        Text("No Project").tag(UUID?.none)
+                        ForEach(viewModel.projects, id: \.id) { project in
+                            Text(project.name).tag(Optional(project.id))
+                        }
+                    }
+
+                    Picker("Status", selection: $newStatus) {
+                        ForEach(TaskStatus.allCases, id: \.rawValue) { status in
+                            Text(status.rawValue).tag(status)
+                        }
+                    }
+                }
+                .navigationTitle("New Task")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showCreateTask = false
+                            resetCreateTaskForm()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            viewModel.createTask(
+                                title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                                notes: newNotes.isEmpty ? nil : newNotes,
+                                projectId: newProjectId,
+                                status: newStatus
+                            )
+                            showCreateTask = false
+                            resetCreateTaskForm()
+                        }
+                        .disabled(newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private func resetCreateTaskForm() {
+        newTitle = ""
+        newNotes = ""
+        newProjectId = nil
+        newStatus = .todo
+    }
+}
+
+struct CompactProjectsPanel: View {
+    @ObservedObject var viewModel: ProjectsViewModel
+    @State private var showCreateProject = false
+    @State private var projectName = ""
+    @State private var projectColor = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Projects")
+                    .font(.headline)
+
+                Spacer()
+
+                Button {
+                    showCreateProject = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            if viewModel.projects.isEmpty {
+                CompactEmptyState(text: "No projects yet")
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(viewModel.projects, id: \.id) { project in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(project.name)
+                                    .font(.subheadline.weight(.semibold))
+                                Text("\(viewModel.tasks(for: project).count) tasks")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(Color.primary.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                    }
+                }
+            }
+
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .sheet(isPresented: $showCreateProject) {
+            NavigationStack {
+                Form {
+                    TextField("Name", text: $projectName)
+                    TextField("Color (optional)", text: $projectColor)
+                }
+                .navigationTitle("New Project")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showCreateProject = false
+                            resetCreateProjectForm()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            viewModel.createProject(
+                                name: projectName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                color: projectColor.isEmpty ? nil : projectColor
+                            )
+                            showCreateProject = false
+                            resetCreateProjectForm()
+                        }
+                        .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private func resetCreateProjectForm() {
+        projectName = ""
+        projectColor = ""
+    }
+}
+
+struct CompactSettingsPanel: View {
+    @ObservedObject var viewModel: SettingsViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Settings")
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Timer")
+                        .font(.subheadline.weight(.semibold))
+
+                    Stepper(value: $viewModel.workDurationMinutes, in: 1...180) {
+                        Text("Work: \(viewModel.workDurationMinutes) min")
+                    }
+
+                    Stepper(value: $viewModel.breakDurationMinutes, in: 1...60) {
+                        Text("Break: \(viewModel.breakDurationMinutes) min")
+                    }
+
+                    Button("Save Durations") {
+                        viewModel.saveDurations()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .panelSectionStyle()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Behavior")
+                        .font(.subheadline.weight(.semibold))
+
+                    Toggle("Auto-start next session", isOn: $viewModel.autoStartNext)
+
+                    Button("Apply") {
+                        viewModel.saveAutoStartNext()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .panelSectionStyle()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Sync")
+                        .font(.subheadline.weight(.semibold))
+
+                    detailRow(title: "Connectivity", value: viewModel.syncStatus.isOnlinePlaceholder ? "Online" : "Offline")
+                    detailRow(title: "Pending", value: "\(viewModel.syncStatus.pendingOperations)")
+                    detailRow(title: "Last sync", value: viewModel.syncStatus.lastSyncText)
+
+                    Button(viewModel.isSyncingNow ? "Syncing..." : "Sync now") {
+                        viewModel.syncNow()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(viewModel.isSyncingNow)
+                }
+                .panelSectionStyle()
+
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.caption)
+    }
+}
+
+struct CompactEmptyState: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 80)
+            .background(Color.primary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private extension View {
+    func panelSectionStyle() -> some View {
+        self
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
