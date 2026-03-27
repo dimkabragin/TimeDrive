@@ -12,7 +12,13 @@ import SwiftData
 struct TimeDriveApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Project.self,
+            Task.self,
+            TimerSettings.self,
+            TimerSession.self,
+            TimerState.self,
+            TimeEvent.self,
+            SyncOperation.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +31,8 @@ struct TimeDriveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            let appContainer = AppContainer(modelContext: sharedModelContainer.mainContext)
+            ContentView(appContainer: appContainer)
         }
         .modelContainer(sharedModelContainer)
     }
