@@ -88,7 +88,7 @@ struct TimerHeaderView: View {
             return "25:00"
         }
         if snapshot.isInExtraTime {
-            return "-\(formatClock(snapshot.extraSec))"
+            return formatClock(snapshot.extraSec)
         }
         return formatClock(max(0, snapshot.remainingSec))
     }
