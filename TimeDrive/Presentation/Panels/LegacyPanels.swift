@@ -75,6 +75,7 @@ struct TasksView: View {
                 notes: $newNotes,
                 projectId: $newProjectId,
                 status: $newStatus,
+                titleKey: "editor.task.title.create",
                 projects: viewModel.projects,
                 onCancel: {
                     showCreateTask = false
@@ -138,6 +139,7 @@ struct ProjectsView: View {
             ProjectEditorSheet(
                 name: $projectName,
                 color: $projectColor,
+                titleKey: "editor.project.title.create",
                 onCancel: {
                     showCreateProject = false
                     resetCreateProjectForm()

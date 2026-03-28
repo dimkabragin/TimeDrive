@@ -3,6 +3,7 @@ import SwiftUI
 struct ProjectEditorSheet: View {
     @Binding var name: String
     @Binding var color: String
+    let titleKey: String
 
     let onCancel: () -> Void
     let onSave: () -> Void
@@ -13,7 +14,7 @@ struct ProjectEditorSheet: View {
                 TextField(String(localized: "field.name"), text: $name)
                 TextField(String(localized: "field.colorOptional"), text: $color)
             }
-            .navigationTitle(String(localized: "editor.project.title"))
+            .navigationTitle(String(localized: LocalizedStringResource(stringLiteral: titleKey)))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "action.cancel"), action: onCancel)

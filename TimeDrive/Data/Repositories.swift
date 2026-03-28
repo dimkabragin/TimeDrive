@@ -23,6 +23,7 @@ protocol TaskRepository {
     func create(title: String, notes: String?, projectId: UUID?, estimateMinutes: Int?) throws -> Task
     func update(task: Task, title: String, notes: String?, status: TaskStatus, projectId: UUID?) throws
     func complete(taskId: UUID, at now: Date) throws -> Task?
+    func softDelete(taskId: UUID) throws
 }
 
 protocol SettingsRepository {
@@ -40,6 +41,7 @@ protocol TimerRepository {
     func setActiveSession(_ session: TimerSession?, now: Date) throws
     func addEvent(sessionId: UUID, type: TimeEventType, payloadJson: String, occurredAt: Date) throws
     func hasThresholdEvent(sessionId: UUID) throws -> Bool
+    func sessions(taskIds: [UUID]) throws -> [TimerSession]
 }
 
 final class SwiftDataSyncRepository: SyncRepository {
@@ -149,9 +151,32 @@ final class SwiftDataProjectRepository: ProjectRepository {
     func softDelete(projectId: UUID) throws {
         let descriptor = FetchDescriptor<Project>(predicate: #Predicate { $0.id == projectId })
         guard let project = try modelContext.fetch(descriptor).first else { return }
-        project.deletedAt = .now
-        project.updatedAt = .now
+        let now = Date.now
+        project.deletedAt = now
+        project.updatedAt = now
+
+        let linkedTasksDescriptor = FetchDescriptor<Task>(predicate: #Predicate { $0.projectId == projectId })
+        let linkedTasks = try modelContext.fetch(linkedTasksDescriptor)
+        for task in linkedTasks {
+            task.projectId = nil
+            task.updatedAt = now
+        }
+
         try modelContext.save()
+
+        for task in linkedTasks {
+            let taskPayload = try encodeSyncPayload(TaskSyncPayload(
+                title: task.title,
+                notes: task.notes,
+                status: task.status.rawValue,
+                projectId: task.projectId,
+                estimateMinutes: task.estimateMinutes,
+                completedAt: task.completedAt,
+                deletedAt: task.deletedAt
+            ))
+            try syncRepository.enqueue(entityType: .task, entityId: task.id, opType: .update, payloadJson: taskPayload)
+        }
+
         let payload = try encodeSyncPayload(EmptySyncPayload())
         try syncRepository.enqueue(entityType: .project, entityId: project.id, opType: .delete, payloadJson: payload)
     }
@@ -241,6 +266,24 @@ final class SwiftDataTaskRepository: TaskRepository {
         ))
         try syncRepository.enqueue(entityType: .task, entityId: task.id, opType: .update, payloadJson: payload)
         return task
+    }
+
+    func softDelete(taskId: UUID) throws {
+        guard let task = try task(by: taskId) else { return }
+        let now = Date.now
+        task.deletedAt = now
+        task.updatedAt = now
+        try modelContext.save()
+        let payload = try encodeSyncPayload(TaskSyncPayload(
+            title: task.title,
+            notes: task.notes,
+            status: task.status.rawValue,
+            projectId: task.projectId,
+            estimateMinutes: task.estimateMinutes,
+            completedAt: task.completedAt,
+            deletedAt: task.deletedAt
+        ))
+        try syncRepository.enqueue(entityType: .task, entityId: task.id, opType: .delete, payloadJson: payload)
     }
 }
 
@@ -400,5 +443,16 @@ final class SwiftDataTimerRepository: TimerRepository {
     func hasThresholdEvent(sessionId: UUID) throws -> Bool {
         let descriptor = FetchDescriptor<TimeEvent>(predicate: #Predicate { $0.sessionId == sessionId })
         return try modelContext.fetch(descriptor).contains { $0.type == .thresholdReached }
+    }
+
+    func sessions(taskIds: [UUID]) throws -> [TimerSession] {
+        guard !taskIds.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<TimerSession>(sortBy: [SortDescriptor(\TimerSession.startedAt)])
+        let sessions = try modelContext.fetch(descriptor)
+        let taskIdSet = Set(taskIds)
+        return sessions.filter { session in
+            guard let taskId = session.taskId else { return false }
+            return taskIdSet.contains(taskId)
+        }
     }
 }

@@ -352,6 +352,159 @@ struct TimeDriveTests {
         #expect(project.deletedAt == nil)
     }
 
+    @MainActor
+    @Test
+    func taskRepository_softDelete_excludesTaskFromFetchAllWithoutDeletedFlag() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let repository = SwiftDataTaskRepository(modelContext: context, syncRepository: syncRepository)
+        let task = try repository.create(title: "Task", notes: nil, projectId: nil, estimateMinutes: nil)
+
+        try repository.softDelete(taskId: task.id)
+
+        let visible = try repository.fetchAll(includeDeleted: false)
+        let all = try repository.fetchAll(includeDeleted: true)
+
+        #expect(visible.contains(where: { $0.id == task.id }) == false)
+        #expect(all.contains(where: { $0.id == task.id }))
+        #expect(all.first(where: { $0.id == task.id })?.deletedAt != nil)
+    }
+
+    @MainActor
+    @Test
+    func projectRepository_softDelete_unbindsRelatedTasks() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let projectRepository = SwiftDataProjectRepository(modelContext: context, syncRepository: syncRepository)
+        let taskRepository = SwiftDataTaskRepository(modelContext: context, syncRepository: syncRepository)
+        let project = try projectRepository.create(name: "Project A", color: nil)
+        let task = try taskRepository.create(title: "Task A", notes: nil, projectId: project.id, estimateMinutes: nil)
+
+        try projectRepository.softDelete(projectId: project.id)
+
+        let refreshed = try #require(try taskRepository.task(by: task.id))
+        #expect(refreshed.projectId == nil)
+    }
+
+    @MainActor
+    @Test
+    func taskRepository_update_changesProjectId() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let projectRepository = SwiftDataProjectRepository(modelContext: context, syncRepository: syncRepository)
+        let taskRepository = SwiftDataTaskRepository(modelContext: context, syncRepository: syncRepository)
+        let initialProject = try projectRepository.create(name: "Initial", color: nil)
+        let targetProject = try projectRepository.create(name: "Target", color: nil)
+        let task = try taskRepository.create(title: "Task", notes: nil, projectId: initialProject.id, estimateMinutes: nil)
+
+        try taskRepository.update(task: task, title: task.title, notes: task.notes, status: task.status, projectId: targetProject.id)
+
+        #expect(task.projectId == targetProject.id)
+    }
+
+    @MainActor
+    @Test
+    func projectsViewModel_projectTime_includesOnlyCompletedWorkSessions() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let projectRepository = SwiftDataProjectRepository(modelContext: context, syncRepository: syncRepository)
+        let taskRepository = SwiftDataTaskRepository(modelContext: context, syncRepository: syncRepository)
+        let timerRepository = SwiftDataTimerRepository(modelContext: context, syncRepository: syncRepository)
+
+        let project = try projectRepository.create(name: "Stats", color: nil)
+        let linkedTask = try taskRepository.create(title: "Linked", notes: nil, projectId: project.id, estimateMinutes: nil)
+        let foreignTask = try taskRepository.create(title: "Foreign", notes: nil, projectId: nil, estimateMinutes: nil)
+
+        let completedWork = TimerSession(
+            mode: .work,
+            taskId: linkedTask.id,
+            plannedDurationSec: 300,
+            startedAt: Date(timeIntervalSince1970: 1_000),
+            endedAt: Date(timeIntervalSince1970: 1_100),
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            updatedAt: Date(timeIntervalSince1970: 1_100)
+        )
+        let completedBreak = TimerSession(
+            mode: .break,
+            taskId: linkedTask.id,
+            plannedDurationSec: 300,
+            startedAt: Date(timeIntervalSince1970: 1_200),
+            endedAt: Date(timeIntervalSince1970: 1_260),
+            createdAt: Date(timeIntervalSince1970: 1_200),
+            updatedAt: Date(timeIntervalSince1970: 1_260)
+        )
+        let unfinishedWork = TimerSession(
+            mode: .work,
+            taskId: linkedTask.id,
+            plannedDurationSec: 300,
+            startedAt: Date(timeIntervalSince1970: 1_300),
+            endedAt: nil,
+            createdAt: Date(timeIntervalSince1970: 1_300),
+            updatedAt: Date(timeIntervalSince1970: 1_300)
+        )
+        let foreignWork = TimerSession(
+            mode: .work,
+            taskId: foreignTask.id,
+            plannedDurationSec: 300,
+            startedAt: Date(timeIntervalSince1970: 1_400),
+            endedAt: Date(timeIntervalSince1970: 1_480),
+            createdAt: Date(timeIntervalSince1970: 1_400),
+            updatedAt: Date(timeIntervalSince1970: 1_480)
+        )
+        let negativeDurationWork = TimerSession(
+            mode: .work,
+            taskId: linkedTask.id,
+            plannedDurationSec: 300,
+            startedAt: Date(timeIntervalSince1970: 1_700),
+            endedAt: Date(timeIntervalSince1970: 1_650),
+            createdAt: Date(timeIntervalSince1970: 1_700),
+            updatedAt: Date(timeIntervalSince1970: 1_650)
+        )
+
+        context.insert(completedWork)
+        context.insert(completedBreak)
+        context.insert(unfinishedWork)
+        context.insert(foreignWork)
+        context.insert(negativeDurationWork)
+        try context.save()
+
+        let viewModel = ProjectsViewModel(
+            projectRepository: projectRepository,
+            taskRepository: taskRepository,
+            timerRepository: timerRepository
+        )
+        viewModel.load()
+
+        #expect(viewModel.projectSpentTime(for: project) == 100)
+    }
+
+    @MainActor
+    @Test
+    func projectsViewModel_deleteProject_updatesVisibleProjectsAndUnbindsTasks() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let projectRepository = SwiftDataProjectRepository(modelContext: context, syncRepository: syncRepository)
+        let taskRepository = SwiftDataTaskRepository(modelContext: context, syncRepository: syncRepository)
+        let timerRepository = SwiftDataTimerRepository(modelContext: context, syncRepository: syncRepository)
+        let project = try projectRepository.create(name: "Disposable", color: nil)
+        let task = try taskRepository.create(title: "Bound", notes: nil, projectId: project.id, estimateMinutes: nil)
+
+        let viewModel = ProjectsViewModel(
+            projectRepository: projectRepository,
+            taskRepository: taskRepository,
+            timerRepository: timerRepository
+        )
+        viewModel.load()
+        #expect(viewModel.projects.count == 1)
+        #expect(viewModel.tasks.first?.projectId == project.id)
+
+        viewModel.deleteProject(project)
+
+        #expect(viewModel.projects.isEmpty)
+        #expect(viewModel.tasks.contains(where: { $0.id == task.id }))
+        #expect(viewModel.tasks.first(where: { $0.id == task.id })?.projectId == nil)
+    }
+
     @Test
     func activeSnapshot_whenAutoStartNextEnabled_switchesToBreakAfterWorkOverrun() throws {
         let taskRepository = FakeTaskRepository()
@@ -403,6 +556,13 @@ private final class FakeTaskRepository: TaskRepository {
         task.updatedAt = now
         tasks[taskId] = task
         return task
+    }
+
+    func softDelete(taskId: UUID) throws {
+        guard let task = tasks[taskId] else { return }
+        task.deletedAt = .now
+        task.updatedAt = .now
+        tasks[taskId] = task
     }
 }
 
@@ -502,6 +662,14 @@ private final class FakeTimerRepository: TimerRepository {
 
     func hasThresholdEvent(sessionId: UUID) throws -> Bool {
         thresholdEvents.contains(sessionId)
+    }
+
+    func sessions(taskIds: [UUID]) throws -> [TimerSession] {
+        let allowed = Set(taskIds)
+        return sessions.values.filter { session in
+            guard let taskId = session.taskId else { return false }
+            return allowed.contains(taskId)
+        }
     }
 }
 

@@ -2,9 +2,10 @@ import SwiftUI
 
 struct CompactProjectsPanel: View {
     @ObservedObject var viewModel: ProjectsViewModel
-    @State private var showCreateProject = false
+    @State private var showProjectEditor = false
     @State private var projectName = ""
     @State private var projectColor = ""
+    @State private var editingProject: Project?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -15,7 +16,7 @@ struct CompactProjectsPanel: View {
                 Spacer()
 
                 Button {
-                    showCreateProject = true
+                    openCreateProject()
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .bold))
@@ -34,7 +35,14 @@ struct CompactProjectsPanel: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(project.name)
                                     .font(.subheadline.weight(.semibold))
-                                Text("\(viewModel.tasks(for: project).count) tasks")
+
+                                let tasksCount = viewModel.tasks(for: project).count
+                                let spentTime = viewModel.formattedProjectSpentTime(for: project)
+                                Text(String(
+                                    format: String(localized: "projects.statsFormat"),
+                                    tasksCount,
+                                    spentTime
+                                ))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -42,6 +50,14 @@ struct CompactProjectsPanel: View {
                             .padding(12)
                             .background(Color.primary.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .contextMenu {
+                                Button(String(localized: "action.edit")) {
+                                    openEditProject(project)
+                                }
+                                Button(String(localized: "action.delete"), role: .destructive) {
+                                    viewModel.deleteProject(project)
+                                }
+                            }
                         }
                     }
                 }
@@ -51,30 +67,61 @@ struct CompactProjectsPanel: View {
                 InlineErrorView(message: error)
             }
         }
-        .sheet(isPresented: $showCreateProject) {
+        .sheet(isPresented: $showProjectEditor) {
             ProjectEditorSheet(
                 name: $projectName,
                 color: $projectColor,
+                titleKey: editingProject == nil ? "editor.project.title.create" : "editor.project.title.edit",
                 onCancel: {
-                    showCreateProject = false
-                    resetCreateProjectForm()
+                    closeProjectEditor()
                 },
                 onSave: {
                     let previousError = viewModel.errorMessage
-                    viewModel.createProject(
-                        name: projectName.trimmingCharacters(in: .whitespacesAndNewlines),
-                        color: projectColor.isEmpty ? nil : projectColor
-                    )
+                    let trimmedName = projectName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                    if let editingProject {
+                        viewModel.updateProject(
+                            project: editingProject,
+                            name: trimmedName,
+                            color: projectColor.isEmpty ? nil : projectColor,
+                            isArchived: editingProject.isArchived
+                        )
+                    } else {
+                        viewModel.createProject(
+                            name: trimmedName,
+                            color: projectColor.isEmpty ? nil : projectColor
+                        )
+                    }
+
                     if viewModel.errorMessage == previousError || viewModel.errorMessage == nil {
-                        showCreateProject = false
-                        resetCreateProjectForm()
+                        closeProjectEditor()
                     }
                 }
             )
         }
     }
 
+    private func openCreateProject() {
+        editingProject = nil
+        projectName = ""
+        projectColor = ""
+        showProjectEditor = true
+    }
+
+    private func openEditProject(_ project: Project) {
+        editingProject = project
+        projectName = project.name
+        projectColor = project.color ?? ""
+        showProjectEditor = true
+    }
+
+    private func closeProjectEditor() {
+        showProjectEditor = false
+        resetCreateProjectForm()
+    }
+
     private func resetCreateProjectForm() {
+        editingProject = nil
         projectName = ""
         projectColor = ""
     }

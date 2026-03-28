@@ -21,6 +21,10 @@
 "task.startHint.active" = "Starts timer for selected task";
 "editor.task.title" = "New Task";
 "editor.project.title" = "New Project";
+"editor.task.title.create" = "New Task";
+"editor.task.title.edit" = "Edit Task";
+"editor.project.title.create" = "New Project";
+"editor.project.title.edit" = "Edit Project";
 "field.title" = "Title";
 "field.notes" = "Notes";
 "field.project" = "Project";
@@ -29,6 +33,9 @@
 "field.colorOptional" = "Color (optional)";
 "action.cancel" = "Cancel";
 "action.save" = "Save";
+"action.edit" = "Edit";
+"action.delete" = "Delete";
+"projects.statsFormat" = "%d tasks • %@";
 "settings.timer.section" = "Timer";
 "settings.behavior.section" = "Behavior";
 "settings.sync.section" = "Sync";
@@ -48,4 +55,3 @@
 "sync.notSyncedYet" = "Not synced yet";
 "menubar.open" = "Open TimeDrive";
 "menubar.quit" = "Quit";
-

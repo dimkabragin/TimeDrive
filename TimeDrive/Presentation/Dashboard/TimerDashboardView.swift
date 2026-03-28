@@ -29,7 +29,8 @@ struct TimerDashboardView: View {
         _projectsViewModel = StateObject(
             wrappedValue: ProjectsViewModel(
                 projectRepository: appContainer.projectRepository,
-                taskRepository: appContainer.taskRepository
+                taskRepository: appContainer.taskRepository,
+                timerRepository: appContainer.timerRepository
             )
         )
         _settingsViewModel = StateObject(

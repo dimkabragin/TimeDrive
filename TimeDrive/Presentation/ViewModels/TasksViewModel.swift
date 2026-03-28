@@ -70,6 +70,24 @@ final class TasksViewModel: ObservableObject {
         }
     }
 
+    func updateTask(task: Task, title: String, notes: String?, status: TaskStatus, projectId: UUID?) {
+        do {
+            try taskRepository.update(task: task, title: title, notes: notes, status: status, projectId: projectId)
+            load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteTask(_ task: Task) {
+        do {
+            try taskRepository.softDelete(taskId: task.id)
+            load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func quickStart(task: Task) {
         do {
             _ = try timerUseCases.startWork(taskId: task.id)

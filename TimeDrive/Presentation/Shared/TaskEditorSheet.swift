@@ -5,6 +5,7 @@ struct TaskEditorSheet: View {
     @Binding var notes: String
     @Binding var projectId: UUID?
     @Binding var status: TaskStatus
+    let titleKey: String
 
     let projects: [Project]
     let onCancel: () -> Void
@@ -29,7 +30,7 @@ struct TaskEditorSheet: View {
                     }
                 }
             }
-            .navigationTitle(String(localized: "editor.task.title"))
+            .navigationTitle(String(localized: LocalizedStringResource(stringLiteral: titleKey)))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "action.cancel"), action: onCancel)

@@ -2,11 +2,12 @@ import SwiftUI
 
 struct CompactTasksPanel: View {
     @ObservedObject var viewModel: TasksViewModel
-    @State private var showCreateTask = false
+    @State private var showTaskEditor = false
     @State private var newTitle = ""
     @State private var newNotes = ""
     @State private var newProjectId: UUID?
     @State private var newStatus: TaskStatus = .todo
+    @State private var editingTask: Task?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -28,7 +29,7 @@ struct CompactTasksPanel: View {
                 .menuStyle(.borderlessButton)
 
                 Button {
-                    showCreateTask = true
+                    openCreateTask()
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .bold))
@@ -88,6 +89,14 @@ struct CompactTasksPanel: View {
                             .padding(12)
                             .background(Color.primary.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .contextMenu {
+                                Button(String(localized: "action.edit")) {
+                                    openEditTask(task)
+                                }
+                                Button(String(localized: "action.delete"), role: .destructive) {
+                                    viewModel.deleteTask(task)
+                                }
+                            }
                         }
                     }
                 }
@@ -97,32 +106,66 @@ struct CompactTasksPanel: View {
                 InlineErrorView(message: error)
             }
         }
-        .sheet(isPresented: $showCreateTask) {
+        .sheet(isPresented: $showTaskEditor) {
             TaskEditorSheet(
                 title: $newTitle,
                 notes: $newNotes,
                 projectId: $newProjectId,
                 status: $newStatus,
+                titleKey: editingTask == nil ? "editor.task.title.create" : "editor.task.title.edit",
                 projects: viewModel.projects,
                 onCancel: {
-                    showCreateTask = false
-                    resetCreateTaskForm()
+                    closeTaskEditor()
                 },
                 onSave: {
                     let previousError = viewModel.errorMessage
-                    viewModel.createTask(
-                        title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                        notes: newNotes.isEmpty ? nil : newNotes,
-                        projectId: newProjectId,
-                        status: newStatus
-                    )
+                    let trimmedTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let normalizedNotes = newNotes.isEmpty ? nil : newNotes
+
+                    if let editingTask {
+                        viewModel.updateTask(
+                            task: editingTask,
+                            title: trimmedTitle,
+                            notes: normalizedNotes,
+                            status: newStatus,
+                            projectId: newProjectId
+                        )
+                    } else {
+                        viewModel.createTask(
+                            title: trimmedTitle,
+                            notes: normalizedNotes,
+                            projectId: newProjectId,
+                            status: newStatus
+                        )
+                    }
+
                     if viewModel.errorMessage == previousError || viewModel.errorMessage == nil {
-                        showCreateTask = false
-                        resetCreateTaskForm()
+                        closeTaskEditor()
                     }
                 }
             )
         }
+    }
+
+    private func openCreateTask() {
+        editingTask = nil
+        resetCreateTaskForm()
+        showTaskEditor = true
+    }
+
+    private func openEditTask(_ task: Task) {
+        editingTask = task
+        newTitle = task.title
+        newNotes = task.notes ?? ""
+        newProjectId = task.projectId
+        newStatus = task.status
+        showTaskEditor = true
+    }
+
+    private func closeTaskEditor() {
+        showTaskEditor = false
+        editingTask = nil
+        resetCreateTaskForm()
     }
 
     private func resetCreateTaskForm() {
