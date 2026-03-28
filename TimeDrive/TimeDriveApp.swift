@@ -61,9 +61,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var refreshTimer: Timer?
     private var appContainer: AppContainer?
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        applyMenuBarOnlyActivationPolicy()
+    }
+
     func configure(appContainer: AppContainer) {
         guard self.appContainer == nil else { return }
         self.appContainer = appContainer
+        applyMenuBarOnlyActivationPolicy()
         configureStatusItem()
         startRefreshingStatusItem()
     }
@@ -72,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard self.window !== window else { return }
         self.window = window
         window.delegate = self
+        applyMenuBarOnlyActivationPolicy()
 
         debugLog("attach(window:) called. styleMask before=\(window.styleMask)")
 
@@ -102,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func toggleWindowVisibility() {
         guard let window else { return }
+        applyMenuBarOnlyActivationPolicy()
         debugLog("toggleWindowVisibility() called. isVisible=\(window.isVisible)")
         if window.isVisible {
             window.orderOut(nil)
@@ -119,6 +126,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func terminateApp() {
         NSApp.terminate(nil)
+    }
+
+    private func applyMenuBarOnlyActivationPolicy() {
+        if NSApp.activationPolicy() != .accessory {
+            let success = NSApp.setActivationPolicy(.accessory)
+            debugLog("applyMenuBarOnlyActivationPolicy(): success=\(success)")
+        }
     }
 
     private func configureStatusItem() {
