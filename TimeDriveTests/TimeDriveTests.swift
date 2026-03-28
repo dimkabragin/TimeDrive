@@ -156,7 +156,11 @@ struct TimeDriveTests {
         let timerRepository = FakeTimerRepository()
         let settingsRepository = FakeSettingsRepository(workDurationSec: 1500, breakDurationSec: 300)
         let useCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
-        let viewModel = TimerScreenViewModel(useCases: useCases, taskRepository: taskRepository)
+        let viewModel = TimerScreenViewModel(
+            useCases: useCases,
+            taskRepository: taskRepository,
+            settingsRepository: settingsRepository
+        )
 
         viewModel.startWorkWithoutTask()
         #expect(viewModel.snapshot?.mode == .work)
@@ -175,7 +179,11 @@ struct TimeDriveTests {
         let timerRepository = FakeTimerRepository()
         let settingsRepository = FakeSettingsRepository(workDurationSec: 1500, breakDurationSec: 300)
         let useCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
-        let viewModel = TimerScreenViewModel(useCases: useCases, taskRepository: taskRepository)
+        let viewModel = TimerScreenViewModel(
+            useCases: useCases,
+            taskRepository: taskRepository,
+            settingsRepository: settingsRepository
+        )
 
         viewModel.selectMode(.break)
         viewModel.startSelectedMode()
@@ -187,6 +195,32 @@ struct TimeDriveTests {
         viewModel.selectMode(.work)
         viewModel.startSelectedMode()
         #expect(viewModel.snapshot?.mode == .work)
+    }
+
+    @MainActor
+    @Test
+    func timerScreenViewModel_idleDurations_refreshAfterSettingsSaveWithoutStartingTimer() throws {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(workDurationSec: 1500, breakDurationSec: 300)
+        let useCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
+        let viewModel = TimerScreenViewModel(
+            useCases: useCases,
+            taskRepository: taskRepository,
+            settingsRepository: settingsRepository
+        )
+
+        viewModel.restore()
+        #expect(viewModel.snapshot == nil)
+        #expect(viewModel.idleWorkDurationSec == 1500)
+        #expect(viewModel.idleBreakDurationSec == 300)
+
+        _ = try useCases.updateDurations(workDurationSec: 2100, breakDurationSec: 420)
+        viewModel.safeReloadIdleDurations()
+
+        #expect(viewModel.snapshot == nil)
+        #expect(viewModel.idleWorkDurationSec == 2100)
+        #expect(viewModel.idleBreakDurationSec == 420)
     }
 
     @MainActor

@@ -5,6 +5,8 @@ import Foundation
 final class TimerScreenViewModel: ObservableObject {
     @Published var snapshot: ActiveTimerSnapshot?
     @Published var selectedMode: TimerMode = .work
+    @Published var idleWorkDurationSec: Int = 25 * 60
+    @Published var idleBreakDurationSec: Int = 5 * 60
     @Published var currentTask: Task?
     @Published var switchableTasks: [Task] = []
     @Published var errorMessage: String?
@@ -15,15 +17,18 @@ final class TimerScreenViewModel: ObservableObject {
 
     private let useCases: TimerUseCases
     private let taskRepository: TaskRepository
+    private let settingsRepository: SettingsRepository
 
-    init(useCases: TimerUseCases, taskRepository: TaskRepository) {
+    init(useCases: TimerUseCases, taskRepository: TaskRepository, settingsRepository: SettingsRepository) {
         self.useCases = useCases
         self.taskRepository = taskRepository
+        self.settingsRepository = settingsRepository
     }
 
     func restore() {
         do {
             try useCases.recoverTimerStateOnLaunch()
+            try reloadIdleDurations()
             try refresh()
             try reloadTasks()
         } catch {
@@ -54,6 +59,20 @@ final class TimerScreenViewModel: ObservableObject {
     func reloadTasks() throws {
         switchableTasks = try taskRepository.fetchAll(includeDeleted: false)
             .filter { $0.status != .done }
+    }
+
+    func reloadIdleDurations() throws {
+        let settings = try settingsRepository.getOrCreate()
+        idleWorkDurationSec = max(60, settings.workDurationSec)
+        idleBreakDurationSec = max(60, settings.breakDurationSec)
+    }
+
+    func safeReloadIdleDurations() {
+        do {
+            try reloadIdleDurations()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func startWorkWithoutTask() {

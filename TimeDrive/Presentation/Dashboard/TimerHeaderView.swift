@@ -2,6 +2,9 @@ import SwiftUI
 
 struct TimerHeaderView: View {
     let snapshot: ActiveTimerSnapshot?
+    let displayedMode: TimerMode
+    let idleWorkDurationSec: Int
+    let idleBreakDurationSec: Int
     let currentTaskTitle: String?
     let activePanel: DashboardPanel?
     let errorMessage: String?
@@ -85,7 +88,14 @@ struct TimerHeaderView: View {
 
     private var mainTimerText: String {
         guard let snapshot else {
-            return "25:00"
+            let idleDuration: Int
+            switch displayedMode {
+            case .work:
+                idleDuration = idleWorkDurationSec
+            case .break:
+                idleDuration = idleBreakDurationSec
+            }
+            return formatClock(max(0, idleDuration))
         }
         if snapshot.isInExtraTime {
             return formatClock(snapshot.extraSec)

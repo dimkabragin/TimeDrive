@@ -15,7 +15,8 @@ struct TimerDashboardView: View {
         _timerViewModel = StateObject(
             wrappedValue: TimerScreenViewModel(
                 useCases: appContainer.timerUseCases,
-                taskRepository: appContainer.taskRepository
+                taskRepository: appContainer.taskRepository,
+                settingsRepository: appContainer.settingsRepository
             )
         )
         _tasksViewModel = StateObject(
@@ -59,7 +60,12 @@ struct TimerDashboardView: View {
                     case .projects:
                         CompactProjectsPanel(viewModel: projectsViewModel)
                     case .settings:
-                        CompactSettingsPanel(viewModel: settingsViewModel)
+                        CompactSettingsPanel(
+                            viewModel: settingsViewModel,
+                            onSaveDurations: {
+                                timerViewModel.safeReloadIdleDurations()
+                            }
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -137,6 +143,9 @@ private struct TimerHeaderContainerView: View {
     var body: some View {
         TimerHeaderView(
             snapshot: timerViewModel.snapshot,
+            displayedMode: timerViewModel.displayedMode,
+            idleWorkDurationSec: timerViewModel.idleWorkDurationSec,
+            idleBreakDurationSec: timerViewModel.idleBreakDurationSec,
             currentTaskTitle: timerViewModel.currentTask?.title,
             activePanel: activePanel,
             errorMessage: timerViewModel.errorMessage,

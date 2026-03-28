@@ -2,6 +2,12 @@ import SwiftUI
 
 struct CompactSettingsPanel: View {
     @ObservedObject var viewModel: SettingsViewModel
+    let onSaveDurations: () -> Void
+
+    init(viewModel: SettingsViewModel, onSaveDurations: @escaping () -> Void = {}) {
+        self.viewModel = viewModel
+        self.onSaveDurations = onSaveDurations
+    }
 
     var body: some View {
         ScrollView {
@@ -23,6 +29,7 @@ struct CompactSettingsPanel: View {
 
                     Button(String(localized: "settings.saveDurations")) {
                         viewModel.saveDurations()
+                        onSaveDurations()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
