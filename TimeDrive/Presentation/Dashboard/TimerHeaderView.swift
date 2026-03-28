@@ -15,18 +15,14 @@ struct TimerHeaderView: View {
                     Text(mainTimerText)
                         .font(.system(size: 78, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        .foregroundStyle(mainTimerColor)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                         .layoutPriority(1)
                         .accessibilityLabel(String(localized: "timer.current"))
                         .accessibilityValue(mainTimerText)
 
-                    if let snapshot, snapshot.isInExtraTime {
-                        Text("+\(formatClock(snapshot.extraSec))")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.orange)
-                            .monospacedDigit()
-                    } else if let currentTaskTitle, !currentTaskTitle.isEmpty {
+                    if let currentTaskTitle, !currentTaskTitle.isEmpty {
                         Text(currentTaskTitle)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -92,9 +88,17 @@ struct TimerHeaderView: View {
             return "25:00"
         }
         if snapshot.isInExtraTime {
-            return "00:00"
+            return "-\(formatClock(snapshot.extraSec))"
         }
         return formatClock(max(0, snapshot.remainingSec))
+    }
+
+    private var mainTimerColor: Color {
+        guard let snapshot, snapshot.isInExtraTime else {
+            return .primary
+        }
+
+        return Color(red: 0.9, green: 0.4, blue: 0.4)
     }
 
     private func formatClock(_ totalSeconds: Int) -> String {
