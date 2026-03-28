@@ -136,26 +136,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func configureStatusItem() {
-        guard let button = statusItem.button else { return }
-        button.target = self
-        button.action = #selector(toggleWindowVisibility)
-        button.sendAction(on: [.leftMouseUp])
+        guard statusItem.button != nil else { return }
         updateStatusItemTitle()
 
         let menu = NSMenu()
         menu.addItem(
-            withTitle: "Open TimeDrive",
+            withTitle: NSLocalizedString("menubar.open", comment: "Open app from menu bar"),
             action: #selector(toggleWindowVisibility),
             keyEquivalent: ""
         )
         menu.addItem(.separator())
         menu.addItem(
-            withTitle: "Quit TimeDrive",
+            withTitle: NSLocalizedString("menubar.quit", comment: "Quit app from menu bar"),
             action: #selector(terminateApp),
             keyEquivalent: "q"
         )
         menu.items.forEach { $0.target = self }
-        statusItem.menu = nil
+        statusItem.menu = menu
     }
 
     private func startRefreshingStatusItem() {

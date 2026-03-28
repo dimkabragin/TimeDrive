@@ -46,4 +46,6 @@
 "sync.syncing" = "Syncing...";
 "sync.notAvailable" = "Not available";
 "sync.notSyncedYet" = "Not synced yet";
+"menubar.open" = "Open TimeDrive";
+"menubar.quit" = "Quit";
 
