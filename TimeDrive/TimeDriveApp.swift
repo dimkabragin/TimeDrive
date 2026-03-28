@@ -25,7 +25,10 @@ struct TimeDriveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(appContainer: appContainer)
+            ContentView(
+                appContainer: appContainer,
+                onWindowReady: appDelegate.attach(window:)
+            )
         }
         .windowResizability(.contentSize)
         .modelContainer(sharedModelContainer)
@@ -69,24 +72,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard self.window !== window else { return }
         self.window = window
         window.delegate = self
+
+        debugLog("attach(window:) called. styleMask before=\(window.styleMask)")
+
+        // Keep only close affordance for menu bar style workflow.
+        window.styleMask.remove([.miniaturizable, .resizable])
+        window.collectionBehavior.remove(.fullScreenPrimary)
+
+        window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.closeButton)?.isHidden = false
+
+        let miniButton = window.standardWindowButton(.miniaturizeButton)
+        let zoomButton = window.standardWindowButton(.zoomButton)
+        debugLog(
+            "attach(window:) applied. styleMask after=\(window.styleMask), " +
+            "mini(hidden=\(miniButton?.isHidden ?? false), enabled=\(miniButton?.isEnabled ?? true)), " +
+            "zoom(hidden=\(zoomButton?.isHidden ?? false), enabled=\(zoomButton?.isEnabled ?? true))"
+        )
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        debugLog("windowShouldClose(_:): hide window instead of terminating")
         sender.orderOut(nil)
         return false
     }
 
     @objc private func toggleWindowVisibility() {
         guard let window else { return }
+        debugLog("toggleWindowVisibility() called. isVisible=\(window.isVisible)")
         if window.isVisible {
             window.orderOut(nil)
         } else {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }
+    }
+
+    private func debugLog(_ message: String) {
+        #if DEBUG
+        print("[TimeDrive][WindowDebug] \(message)")
+        #endif
     }
 
     @objc private func terminateApp() {

@@ -7,16 +7,22 @@
 
 import SwiftUI
 import SwiftData
+import AppKit
 
 struct ContentView: View {
     private let appContainer: AppContainer
+    private let onWindowReady: (NSWindow) -> Void
 
-    init(appContainer: AppContainer) {
+    init(appContainer: AppContainer, onWindowReady: @escaping (NSWindow) -> Void) {
         self.appContainer = appContainer
+        self.onWindowReady = onWindowReady
     }
 
     var body: some View {
-        TimerDashboardView(appContainer: appContainer)
+        TimerDashboardView(
+            appContainer: appContainer,
+            onWindowReady: onWindowReady
+        )
     }
 }
 
@@ -32,5 +38,5 @@ struct ContentView: View {
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let appContainer = AppContainer(modelContext: previewContainer.mainContext)
-    return ContentView(appContainer: appContainer)
+    return ContentView(appContainer: appContainer, onWindowReady: { _ in })
 }

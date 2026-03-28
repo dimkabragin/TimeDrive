@@ -8,8 +8,10 @@ struct TimerDashboardView: View {
     @StateObject private var projectsViewModel: ProjectsViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
     @State private var activePanel: DashboardPanel?
+    private let onWindowReady: (NSWindow) -> Void
 
-    init(appContainer: AppContainer) {
+    init(appContainer: AppContainer, onWindowReady: @escaping (NSWindow) -> Void) {
+        self.onWindowReady = onWindowReady
         _timerViewModel = StateObject(
             wrappedValue: TimerScreenViewModel(
                 useCases: appContainer.timerUseCases,
@@ -67,7 +69,7 @@ struct TimerDashboardView: View {
         .frame(width: 384, alignment: .topLeading)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(.windowBackgroundColor))
-        .background(WindowAccessor())
+        .background(WindowAccessor(onWindowReady: onWindowReady))
         .toolbar {
             ToolbarItem(placement: .principal) {
                 titleBarModeSlider
@@ -152,8 +154,10 @@ private struct TimerHeaderContainerView: View {
 }
 
 struct WindowAccessor: NSViewRepresentable {
+    let onWindowReady: (NSWindow) -> Void
+
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onWindowReady: onWindowReady)
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -170,15 +174,26 @@ struct WindowAccessor: NSViewRepresentable {
 
     final class Coordinator {
         private weak var attachedWindow: NSWindow?
+        private let onWindowReady: (NSWindow) -> Void
+
+        init(onWindowReady: @escaping (NSWindow) -> Void) {
+            self.onWindowReady = onWindowReady
+        }
 
         func attachIfNeeded(from view: NSView) {
-            guard let window = view.window else { return }
+            guard let window = view.window else {
+                #if DEBUG
+                print("[TimeDrive][WindowDebug] WindowAccessor.attachIfNeeded: view.window is nil")
+                #endif
+                return
+            }
             guard attachedWindow !== window else { return }
             attachedWindow = window
 
-            if let appDelegate = NSApp.delegate as? AppDelegate {
-                appDelegate.attach(window: window)
-            }
+            #if DEBUG
+            print("[TimeDrive][WindowDebug] WindowAccessor.attachIfNeeded: found window, attaching delegate")
+            #endif
+            onWindowReady(window)
         }
     }
 }
