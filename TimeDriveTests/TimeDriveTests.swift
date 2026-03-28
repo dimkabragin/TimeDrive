@@ -151,6 +151,46 @@ struct TimeDriveTests {
 
     @MainActor
     @Test
+    func timerScreenViewModel_stopAfterWork_selectsBreakWithoutAutoStart() throws {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(workDurationSec: 1500, breakDurationSec: 300)
+        let useCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
+        let viewModel = TimerScreenViewModel(useCases: useCases, taskRepository: taskRepository)
+
+        viewModel.startWorkWithoutTask()
+        #expect(viewModel.snapshot?.mode == .work)
+
+        viewModel.stopTimer()
+
+        #expect(viewModel.snapshot == nil)
+        #expect(viewModel.selectedMode == .break)
+        #expect(try timerRepository.activeSession() == nil)
+    }
+
+    @MainActor
+    @Test
+    func timerScreenViewModel_startSelectedMode_supportsManualBreakAndSwitchBackToWork() {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(workDurationSec: 1500, breakDurationSec: 300)
+        let useCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
+        let viewModel = TimerScreenViewModel(useCases: useCases, taskRepository: taskRepository)
+
+        viewModel.selectMode(.break)
+        viewModel.startSelectedMode()
+        #expect(viewModel.snapshot?.mode == .break)
+
+        viewModel.stopTimer()
+        #expect(viewModel.snapshot == nil)
+
+        viewModel.selectMode(.work)
+        viewModel.startSelectedMode()
+        #expect(viewModel.snapshot?.mode == .work)
+    }
+
+    @MainActor
+    @Test
     func syncEngine_pushPendingOperations_marksAckedAndFailedByResponse() async throws {
         let op1 = SyncOperation(id: UUID(), entityType: .task, entityId: UUID(), opType: .create, payloadJson: "{}", clientTimestamp: Date(timeIntervalSince1970: 1), status: .pending, retryCount: 0)
         let op2 = SyncOperation(id: UUID(), entityType: .task, entityId: UUID(), opType: .update, payloadJson: "{}", clientTimestamp: Date(timeIntervalSince1970: 2), status: .pending, retryCount: 0)

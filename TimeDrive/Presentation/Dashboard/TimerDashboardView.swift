@@ -94,22 +94,37 @@ struct TimerDashboardView: View {
 
     private var titleBarModeSlider: some View {
         HStack(spacing: 4) {
-            titleBarModeItem(title: String(localized: "panel.work"), isActive: timerViewModel.snapshot?.mode == .work, color: .blue)
-            titleBarModeItem(title: String(localized: "panel.pause"), isActive: timerViewModel.snapshot?.mode == .break, color: .green)
+            titleBarModeItem(
+                title: String(localized: "panel.work"),
+                mode: .work,
+                isActive: timerViewModel.displayedMode == .work,
+                color: .blue
+            )
+            titleBarModeItem(
+                title: String(localized: "panel.pause"),
+                mode: .break,
+                isActive: timerViewModel.displayedMode == .break,
+                color: .green
+            )
         }
         .padding(3)
         .background(Color.primary.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func titleBarModeItem(title: String, isActive: Bool, color: Color) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .frame(width: 54)
-            .padding(.vertical, 6)
-            .foregroundStyle(isActive ? Color.white : Color.secondary)
-            .background(isActive ? color : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    private func titleBarModeItem(title: String, mode: TimerMode, isActive: Bool, color: Color) -> some View {
+        Button {
+            timerViewModel.selectMode(mode)
+        } label: {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .frame(width: 54)
+                .padding(.vertical, 6)
+                .foregroundStyle(isActive ? Color.white : Color.secondary)
+                .background(isActive ? color : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -138,7 +153,7 @@ private struct TimerHeaderContainerView: View {
 
     private func toggleTimer() {
         if timerViewModel.snapshot == nil {
-            timerViewModel.startWorkWithoutTask()
+            timerViewModel.startSelectedMode()
         } else {
             timerViewModel.stopTimer()
         }

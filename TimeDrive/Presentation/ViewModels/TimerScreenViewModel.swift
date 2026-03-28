@@ -4,9 +4,14 @@ import Foundation
 @MainActor
 final class TimerScreenViewModel: ObservableObject {
     @Published var snapshot: ActiveTimerSnapshot?
+    @Published var selectedMode: TimerMode = .work
     @Published var currentTask: Task?
     @Published var switchableTasks: [Task] = []
     @Published var errorMessage: String?
+
+    var displayedMode: TimerMode {
+        snapshot?.mode ?? selectedMode
+    }
 
     private let useCases: TimerUseCases
     private let taskRepository: TaskRepository
@@ -28,6 +33,9 @@ final class TimerScreenViewModel: ObservableObject {
 
     func refresh(now: Date = .now) throws {
         snapshot = try useCases.activeSnapshot(now: now)
+        if let mode = snapshot?.mode {
+            selectedMode = mode
+        }
         if let taskId = snapshot?.taskId {
             currentTask = try taskRepository.task(by: taskId)
         } else {
@@ -58,10 +66,25 @@ final class TimerScreenViewModel: ObservableObject {
         }
     }
 
+    func startSelectedMode() {
+        switch selectedMode {
+        case .work:
+            startWorkWithoutTask()
+        case .break:
+            skipToBreak()
+        }
+    }
+
     func stopTimer() {
         do {
+            let stoppedMode = snapshot?.mode
             try useCases.stopActiveSession()
             try refresh()
+            if stoppedMode == .work {
+                selectedMode = .break
+            } else if let stoppedMode {
+                selectedMode = stoppedMode
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -83,6 +106,12 @@ final class TimerScreenViewModel: ObservableObject {
             try reloadTasks()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func selectMode(_ mode: TimerMode) {
+        if snapshot == nil {
+            selectedMode = mode
         }
     }
 }
