@@ -383,7 +383,12 @@ struct TimeDriveTests {
         try projectRepository.softDelete(projectId: project.id)
 
         let refreshed = try #require(try taskRepository.task(by: task.id))
+        let visibleProjects = try projectRepository.fetchAll(includeDeleted: false)
+        let allProjects = try projectRepository.fetchAll(includeDeleted: true)
+
         #expect(refreshed.projectId == nil)
+        #expect(visibleProjects.contains(where: { $0.id == project.id }) == false)
+        #expect(allProjects.first(where: { $0.id == project.id })?.deletedAt != nil)
     }
 
     @MainActor

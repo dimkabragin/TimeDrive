@@ -80,27 +80,32 @@ final class ProjectsViewModel: ObservableObject {
     }
 
     private func calculateProjectTimeById(projects: [Project], tasks: [Task]) throws -> [UUID: Int] {
-        var result: [UUID: Int] = [:]
+        var result: [UUID: Int] = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, 0) })
         let taskIdsByProject = Dictionary(grouping: tasks.compactMap { task -> (UUID, UUID)? in
             guard let projectId = task.projectId else { return nil }
             return (projectId, task.id)
         }, by: { $0.0 }).mapValues { pairs in pairs.map { $0.1 } }
 
-        for project in projects {
-            guard let taskIds = taskIdsByProject[project.id], !taskIds.isEmpty else {
-                result[project.id] = 0
+        let allTaskIds = Set(taskIdsByProject.values.flatMap { $0 })
+        guard !allTaskIds.isEmpty else {
+            return result
+        }
+
+        let sessions = try timerRepository.sessions(taskIds: Array(allTaskIds))
+        let projectIdByTaskId = Dictionary(uniqueKeysWithValues: tasks.compactMap { task -> (UUID, UUID)? in
+            guard let projectId = task.projectId else { return nil }
+            return (task.id, projectId)
+        })
+
+        for session in sessions where session.mode == .work {
+            guard let endedAt = session.endedAt,
+                  let taskId = session.taskId,
+                  let projectId = projectIdByTaskId[taskId]
+            else {
                 continue
             }
 
-            let sessions = try timerRepository.sessions(taskIds: taskIds)
-            let total = sessions
-                .filter { $0.mode == .work }
-                .reduce(into: 0) { partial, session in
-                    guard let endedAt = session.endedAt else { return }
-                    partial += max(0, Int(endedAt.timeIntervalSince(session.startedAt)))
-                }
-
-            result[project.id] = total
+            result[projectId, default: 0] += max(0, Int(endedAt.timeIntervalSince(session.startedAt)))
         }
 
         return result
