@@ -226,6 +226,8 @@ resolve_sparkle_sign_update_tool() {
   local candidates=()
   candidates+=("$(command -v sign_update 2>/dev/null || true)")
   candidates+=("$(xcrun --find sign_update 2>/dev/null || true)")
+  candidates+=("${ROOT_DIR}/.build-release/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update")
+  candidates+=("${ROOT_DIR}/.build-release/DerivedData/SourcePackages/checkouts/Sparkle/bin/sign_update")
   candidates+=("/opt/homebrew/bin/sign_update")
   candidates+=("/usr/local/bin/sign_update")
 
