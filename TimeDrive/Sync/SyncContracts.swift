@@ -69,6 +69,7 @@ struct SettingsSyncPayload: Codable {
     let workDurationSec: Int?
     let breakDurationSec: Int?
     let autoStartNext: Bool?
+    let autoUpdatesEnabled: Bool?
 }
 
 struct SessionSyncPayload: Codable {

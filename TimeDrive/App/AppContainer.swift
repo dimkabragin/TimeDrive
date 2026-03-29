@@ -1,20 +1,25 @@
 import Foundation
+import Combine
 import SwiftData
 
 enum UpdateCheckResult: Equatable {
     case checking
+    case upToDate
+    case updateAvailable(version: String)
     case unavailable
     case failed(message: String)
 }
 
 protocol UpdateService {
     var isAutoUpdateSupported: Bool { get }
+    var checkForUpdatesEvents: AnyPublisher<UpdateCheckResult, Never> { get }
     func setAutomaticChecksEnabled(_ isEnabled: Bool)
     func checkForUpdates() async -> UpdateCheckResult
 }
 
 final class NoOpUpdateService: UpdateService {
     var isAutoUpdateSupported: Bool { false }
+    var checkForUpdatesEvents: AnyPublisher<UpdateCheckResult, Never> { Empty().eraseToAnyPublisher() }
 
     func setAutomaticChecksEnabled(_ isEnabled: Bool) {}
 

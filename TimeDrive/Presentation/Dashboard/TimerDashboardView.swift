@@ -38,7 +38,8 @@ struct TimerDashboardView: View {
                 settingsRepository: appContainer.settingsRepository,
                 syncRepository: appContainer.syncRepository,
                 timerUseCases: appContainer.timerUseCases,
-                syncEngine: appContainer.syncEngine
+                syncEngine: appContainer.syncEngine,
+                updateService: appContainer.updateService
             )
         )
     }

@@ -51,6 +51,30 @@ struct CompactSettingsPanel: View {
                 .panelSectionStyle()
 
                 VStack(alignment: .leading, spacing: 12) {
+                    Text(String(localized: "settings.updates.section"))
+                        .font(.subheadline.weight(.semibold))
+
+                    Toggle(String(localized: "settings.updates.autoCheck"), isOn: $viewModel.autoUpdatesEnabled)
+                        .onChange(of: viewModel.autoUpdatesEnabled) { _, _ in
+                            viewModel.saveAutoUpdatesEnabled()
+                        }
+
+                    Button(viewModel.isCheckingForUpdates ? String(localized: "settings.updates.checking") : String(localized: "settings.updates.checkNow")) {
+                        viewModel.checkForUpdatesNow()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(viewModel.isCheckingForUpdates)
+
+                    if let updatesStatusMessage = viewModel.updatesStatusMessage {
+                        Text(updatesStatusMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .panelSectionStyle()
+
+                VStack(alignment: .leading, spacing: 12) {
                     Text(String(localized: "settings.sync.section"))
                         .font(.subheadline.weight(.semibold))
 

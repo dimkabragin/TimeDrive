@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftData
 import Testing
 @testable import TimeDrive
@@ -581,17 +582,19 @@ struct TimeDriveTests {
 
         viewModel.load()
         #expect(viewModel.autoUpdatesEnabled == false)
+        #expect(viewModel.updatesStatusMessage == String(localized: "settings.updates.status.manualOnly"))
 
         viewModel.autoUpdatesEnabled = true
         viewModel.saveAutoUpdatesEnabled()
 
         #expect(try settingsRepository.getOrCreate().autoUpdatesEnabled == true)
         #expect(updateService.lastSetAutomaticChecksEnabled == true)
+        #expect(viewModel.updatesStatusMessage == String(localized: "settings.updates.status.idle"))
     }
 
     @MainActor
     @Test
-    func settingsViewModel_checkForUpdatesNow_whenServiceReturnsChecking_keepsNeutralStatus() async throws {
+    func settingsViewModel_checkForUpdatesNow_whenServiceReturnsChecking_waitsForEventAndHandlesUpToDate() async throws {
         let taskRepository = FakeTaskRepository()
         let timerRepository = FakeTimerRepository()
         let settingsRepository = FakeSettingsRepository(
@@ -630,12 +633,18 @@ struct TimeDriveTests {
 
         #expect(updateService.checkForUpdatesCallCount == 1)
         #expect(viewModel.updatesStatusMessage == String(localized: "settings.updates.checking"))
+        #expect(viewModel.isCheckingForUpdates == true)
+
+        updateService.emitCheckEvent(.upToDate)
+        await _Concurrency.Task.yield()
+
+        #expect(viewModel.updatesStatusMessage == String(localized: "settings.updates.status.upToDate"))
         #expect(viewModel.isCheckingForUpdates == false)
     }
 
     @MainActor
     @Test
-    func settingsViewModel_checkForUpdatesNow_showsServiceErrorMessage() async throws {
+    func settingsViewModel_checkForUpdatesNow_whenServiceEventReportsUpdate_showsVersionMessage() async throws {
         let taskRepository = FakeTaskRepository()
         let timerRepository = FakeTimerRepository()
         let settingsRepository = FakeSettingsRepository(
@@ -658,7 +667,7 @@ struct TimeDriveTests {
         )
         let updateService = FakeUpdateService(
             isAutoUpdateSupported: true,
-            checkResult: .failed(message: "Missing Sparkle appcast URL or public key in app configuration")
+            checkResult: .checking
         )
         let viewModel = SettingsViewModel(
             settingsRepository: settingsRepository,
@@ -673,9 +682,13 @@ struct TimeDriveTests {
         await _Concurrency.Task.yield()
 
         #expect(updateService.checkForUpdatesCallCount == 1)
+
+        updateService.emitCheckEvent(.updateAvailable(version: "2.0.1"))
+        await _Concurrency.Task.yield()
+
         let expectedMessage = String(
-            format: String(localized: "settings.updates.status.failedFormat"),
-            "Missing Sparkle appcast URL or public key in app configuration"
+            format: String(localized: "settings.updates.status.updateAvailableFormat"),
+            "2.0.1"
         )
         #expect(viewModel.updatesStatusMessage == expectedMessage)
         #expect(viewModel.isCheckingForUpdates == false)
@@ -835,6 +848,11 @@ private final class FakeUpdateService: UpdateService {
     private(set) var lastSetAutomaticChecksEnabled: Bool?
     private(set) var checkForUpdatesCallCount: Int = 0
     private let checkResult: UpdateCheckResult
+    private let subject = PassthroughSubject<UpdateCheckResult, Never>()
+
+    var checkForUpdatesEvents: AnyPublisher<UpdateCheckResult, Never> {
+        subject.eraseToAnyPublisher()
+    }
 
     init(isAutoUpdateSupported: Bool, checkResult: UpdateCheckResult = .checking) {
         self.isAutoUpdateSupported = isAutoUpdateSupported
@@ -848,6 +866,10 @@ private final class FakeUpdateService: UpdateService {
     func checkForUpdates() async -> UpdateCheckResult {
         checkForUpdatesCallCount += 1
         return checkResult
+    }
+
+    func emitCheckEvent(_ result: UpdateCheckResult) {
+        subject.send(result)
     }
 }
 

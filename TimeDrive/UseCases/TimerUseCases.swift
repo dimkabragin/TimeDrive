@@ -131,6 +131,11 @@ final class TimerUseCases {
         try settingsRepository.updateAutoStartNext(autoStartNext, at: now)
     }
 
+    @discardableResult
+    func updateAutoUpdatesEnabled(_ autoUpdatesEnabled: Bool, now: Date = .now) throws -> TimerSettings {
+        try settingsRepository.updateAutoUpdatesEnabled(autoUpdatesEnabled, at: now)
+    }
+
     func stopActiveSession(now: Date = .now) throws {
         guard let active = try timerRepository.activeSession() else { return }
         try timerRepository.endSession(active, reason: .manualStop, now: now)

@@ -198,6 +198,9 @@ final class SyncEngine {
         if let autoStartNext = payload.autoStartNext {
             settings.autoStartNext = autoStartNext
         }
+        if let autoUpdatesEnabled = payload.autoUpdatesEnabled {
+            settings.autoUpdatesEnabled = autoUpdatesEnabled
+        }
         settings.updatedAt = delta.updatedAt
     }
 }

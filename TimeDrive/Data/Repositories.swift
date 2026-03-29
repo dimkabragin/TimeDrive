@@ -30,6 +30,7 @@ protocol SettingsRepository {
     func getOrCreate() throws -> TimerSettings
     func updateDurations(workDurationSec: Int, breakDurationSec: Int, at now: Date) throws -> TimerSettings
     func updateAutoStartNext(_ autoStartNext: Bool, at now: Date) throws -> TimerSettings
+    func updateAutoUpdatesEnabled(_ autoUpdatesEnabled: Bool, at now: Date) throws -> TimerSettings
 }
 
 protocol TimerRepository {
@@ -307,7 +308,8 @@ final class SwiftDataSettingsRepository: SettingsRepository {
         let payload = try encodeSyncPayload(SettingsSyncPayload(
             workDurationSec: settings.workDurationSec,
             breakDurationSec: settings.breakDurationSec,
-            autoStartNext: settings.autoStartNext
+            autoStartNext: settings.autoStartNext,
+            autoUpdatesEnabled: settings.autoUpdatesEnabled
         ))
         try syncRepository.enqueue(entityType: .settings, entityId: settings.id, opType: .create, payloadJson: payload)
         return settings
@@ -322,7 +324,8 @@ final class SwiftDataSettingsRepository: SettingsRepository {
         let payload = try encodeSyncPayload(SettingsSyncPayload(
             workDurationSec: settings.workDurationSec,
             breakDurationSec: settings.breakDurationSec,
-            autoStartNext: settings.autoStartNext
+            autoStartNext: settings.autoStartNext,
+            autoUpdatesEnabled: settings.autoUpdatesEnabled
         ))
         try syncRepository.enqueue(entityType: .settings, entityId: settings.id, opType: .update, payloadJson: payload)
         return settings
@@ -336,7 +339,23 @@ final class SwiftDataSettingsRepository: SettingsRepository {
         let payload = try encodeSyncPayload(SettingsSyncPayload(
             workDurationSec: settings.workDurationSec,
             breakDurationSec: settings.breakDurationSec,
-            autoStartNext: settings.autoStartNext
+            autoStartNext: settings.autoStartNext,
+            autoUpdatesEnabled: settings.autoUpdatesEnabled
+        ))
+        try syncRepository.enqueue(entityType: .settings, entityId: settings.id, opType: .update, payloadJson: payload)
+        return settings
+    }
+
+    func updateAutoUpdatesEnabled(_ autoUpdatesEnabled: Bool, at now: Date = .now) throws -> TimerSettings {
+        let settings = try getOrCreate()
+        settings.autoUpdatesEnabled = autoUpdatesEnabled
+        settings.updatedAt = now
+        try modelContext.save()
+        let payload = try encodeSyncPayload(SettingsSyncPayload(
+            workDurationSec: settings.workDurationSec,
+            breakDurationSec: settings.breakDurationSec,
+            autoStartNext: settings.autoStartNext,
+            autoUpdatesEnabled: settings.autoUpdatesEnabled
         ))
         try syncRepository.enqueue(entityType: .settings, entityId: settings.id, opType: .update, payloadJson: payload)
         return settings
