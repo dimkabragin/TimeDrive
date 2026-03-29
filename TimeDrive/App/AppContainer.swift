@@ -1,6 +1,28 @@
 import Foundation
 import SwiftData
 
+enum UpdateCheckResult: Equatable {
+    case checking
+    case unavailable
+    case failed(message: String)
+}
+
+protocol UpdateService {
+    var isAutoUpdateSupported: Bool { get }
+    func setAutomaticChecksEnabled(_ isEnabled: Bool)
+    func checkForUpdates() async -> UpdateCheckResult
+}
+
+final class NoOpUpdateService: UpdateService {
+    var isAutoUpdateSupported: Bool { false }
+
+    func setAutomaticChecksEnabled(_ isEnabled: Bool) {}
+
+    func checkForUpdates() async -> UpdateCheckResult {
+        .unavailable
+    }
+}
+
 @MainActor
 final class AppContainer {
     let projectRepository: ProjectRepository
@@ -10,6 +32,7 @@ final class AppContainer {
     let syncRepository: SyncRepository
     let syncEngine: SyncEngine
     let timerUseCases: TimerUseCases
+    let updateService: UpdateService
 
     init(modelContext: ModelContext) {
         let syncRepository = SwiftDataSyncRepository(modelContext: modelContext)
@@ -27,5 +50,8 @@ final class AppContainer {
             modelContext: modelContext
         )
         self.timerUseCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
+        self.updateService = SparkleUpdateService()
+        let isAutoUpdatesEnabled = (try? settingsRepository.getOrCreate().autoUpdatesEnabled) ?? false
+        self.updateService.setAutomaticChecksEnabled(isAutoUpdatesEnabled)
     }
 }

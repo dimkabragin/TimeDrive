@@ -526,6 +526,224 @@ struct TimeDriveTests {
         #expect(snapshot?.plannedDurationSec == 300)
         #expect(snapshot?.remainingSec == 300)
     }
+
+    @MainActor
+    @Test
+    func settingsRepository_updateAutoUpdatesEnabled_persistsFlagAndSyncPayload() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let repository = SwiftDataSettingsRepository(modelContext: context, syncRepository: syncRepository)
+
+        _ = try repository.getOrCreate()
+        _ = try repository.updateAutoUpdatesEnabled(true, at: Date(timeIntervalSince1970: 90_000))
+
+        let saved = try repository.getOrCreate()
+        #expect(saved.autoUpdatesEnabled == true)
+
+        let updateOperation = try #require(
+            syncRepository.pendingOperations().last(where: { $0.opType == .update })
+        )
+        let payload = try decodeSyncPayload(updateOperation.payloadJson, as: SettingsSyncPayload.self)
+        #expect(payload.autoUpdatesEnabled == true)
+    }
+
+    @MainActor
+    @Test
+    func settingsViewModel_saveAutoUpdatesEnabled_updatesRepositoryAndService() throws {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(
+            workDurationSec: 1500,
+            breakDurationSec: 300,
+            autoStartNext: false,
+            autoUpdatesEnabled: false
+        )
+        let timerUseCases = TimerUseCases(
+            taskRepository: taskRepository,
+            timerRepository: timerRepository,
+            settingsRepository: settingsRepository
+        )
+        let syncRepository = FakeSyncRepository(operations: [])
+        let syncEngine = SyncEngine(
+            syncRepository: syncRepository,
+            apiClient: FakeSyncAPIClient(pullResponse: SyncPullResponseDTO(nextToken: nil, deltas: [])),
+            tokenStore: FakeSyncTokenStore(),
+            modelContext: makeInMemoryModelContext()
+        )
+        let updateService = FakeUpdateService(isAutoUpdateSupported: true)
+        let viewModel = SettingsViewModel(
+            settingsRepository: settingsRepository,
+            syncRepository: syncRepository,
+            timerUseCases: timerUseCases,
+            syncEngine: syncEngine,
+            updateService: updateService
+        )
+
+        viewModel.load()
+        #expect(viewModel.autoUpdatesEnabled == false)
+
+        viewModel.autoUpdatesEnabled = true
+        viewModel.saveAutoUpdatesEnabled()
+
+        #expect(try settingsRepository.getOrCreate().autoUpdatesEnabled == true)
+        #expect(updateService.lastSetAutomaticChecksEnabled == true)
+    }
+
+    @MainActor
+    @Test
+    func settingsViewModel_checkForUpdatesNow_whenServiceReturnsChecking_keepsNeutralStatus() async throws {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(
+            workDurationSec: 1500,
+            breakDurationSec: 300,
+            autoStartNext: false,
+            autoUpdatesEnabled: true
+        )
+        let timerUseCases = TimerUseCases(
+            taskRepository: taskRepository,
+            timerRepository: timerRepository,
+            settingsRepository: settingsRepository
+        )
+        let syncRepository = FakeSyncRepository(operations: [])
+        let syncEngine = SyncEngine(
+            syncRepository: syncRepository,
+            apiClient: FakeSyncAPIClient(pullResponse: SyncPullResponseDTO(nextToken: nil, deltas: [])),
+            tokenStore: FakeSyncTokenStore(),
+            modelContext: makeInMemoryModelContext()
+        )
+        let updateService = FakeUpdateService(
+            isAutoUpdateSupported: true,
+            checkResult: .checking
+        )
+        let viewModel = SettingsViewModel(
+            settingsRepository: settingsRepository,
+            syncRepository: syncRepository,
+            timerUseCases: timerUseCases,
+            syncEngine: syncEngine,
+            updateService: updateService
+        )
+
+        viewModel.load()
+        viewModel.checkForUpdatesNow()
+        await _Concurrency.Task.yield()
+
+        #expect(updateService.checkForUpdatesCallCount == 1)
+        #expect(viewModel.updatesStatusMessage == String(localized: "settings.updates.checking"))
+        #expect(viewModel.isCheckingForUpdates == false)
+    }
+
+    @MainActor
+    @Test
+    func settingsViewModel_checkForUpdatesNow_showsServiceErrorMessage() async throws {
+        let taskRepository = FakeTaskRepository()
+        let timerRepository = FakeTimerRepository()
+        let settingsRepository = FakeSettingsRepository(
+            workDurationSec: 1500,
+            breakDurationSec: 300,
+            autoStartNext: false,
+            autoUpdatesEnabled: true
+        )
+        let timerUseCases = TimerUseCases(
+            taskRepository: taskRepository,
+            timerRepository: timerRepository,
+            settingsRepository: settingsRepository
+        )
+        let syncRepository = FakeSyncRepository(operations: [])
+        let syncEngine = SyncEngine(
+            syncRepository: syncRepository,
+            apiClient: FakeSyncAPIClient(pullResponse: SyncPullResponseDTO(nextToken: nil, deltas: [])),
+            tokenStore: FakeSyncTokenStore(),
+            modelContext: makeInMemoryModelContext()
+        )
+        let updateService = FakeUpdateService(
+            isAutoUpdateSupported: true,
+            checkResult: .failed(message: "Missing Sparkle appcast URL or public key in app configuration")
+        )
+        let viewModel = SettingsViewModel(
+            settingsRepository: settingsRepository,
+            syncRepository: syncRepository,
+            timerUseCases: timerUseCases,
+            syncEngine: syncEngine,
+            updateService: updateService
+        )
+
+        viewModel.load()
+        viewModel.checkForUpdatesNow()
+        await _Concurrency.Task.yield()
+
+        #expect(updateService.checkForUpdatesCallCount == 1)
+        let expectedMessage = String(
+            format: String(localized: "settings.updates.status.failedFormat"),
+            "Missing Sparkle appcast URL or public key in app configuration"
+        )
+        #expect(viewModel.updatesStatusMessage == expectedMessage)
+        #expect(viewModel.isCheckingForUpdates == false)
+    }
+
+    @MainActor
+    @Test
+    func sparkleUpdateService_validConfiguration_returnsCheckingForManualTrigger() async {
+        let service = SparkleUpdateService(infoValueProvider: { key in
+            switch key {
+            case "SUFeedURL":
+                return "https://updates.example.com/appcast.xml"
+            case "SUPublicEDKey":
+                return "pubkey"
+            default:
+                return nil
+            }
+        })
+
+        let result = await service.checkForUpdates()
+
+        #if os(macOS) && canImport(Sparkle)
+        #expect(result == .checking)
+        #else
+        #expect(result == .unavailable)
+        #endif
+    }
+
+    @MainActor
+    @Test
+    func sparkleUpdateService_missingConfiguration_returnsFailedResult() async {
+        let service = SparkleUpdateService(infoValueProvider: { _ in nil })
+
+        #expect(service.isAutoUpdateSupported == false)
+        let result = await service.checkForUpdates()
+
+        switch result {
+        case .failed(let message):
+            #expect(message == "Missing Sparkle appcast URL or public key in app configuration")
+        default:
+            Issue.record("Expected failed result for missing Sparkle config")
+        }
+    }
+
+    @MainActor
+    @Test
+    func sparkleUpdateService_nonHTTPSAppcast_returnsFailedResult() async {
+        let service = SparkleUpdateService(infoValueProvider: { key in
+            switch key {
+            case "SUFeedURL":
+                return "http://updates.example.com/appcast.xml"
+            case "SUPublicEDKey":
+                return "pubkey"
+            default:
+                return nil
+            }
+        })
+
+        #expect(service.isAutoUpdateSupported == false)
+        let result = await service.checkForUpdates()
+
+        switch result {
+        case .failed(let message):
+            #expect(message == "Sparkle appcast URL must use HTTPS")
+        default:
+            Issue.record("Expected failed result for non-HTTPS Sparkle appcast URL")
+        }
+    }
 }
 
 private final class FakeTaskRepository: TaskRepository {
@@ -574,8 +792,18 @@ private final class FakeTaskRepository: TaskRepository {
 private final class FakeSettingsRepository: SettingsRepository {
     private let settings: TimerSettings
 
-    init(workDurationSec: Int, breakDurationSec: Int, autoStartNext: Bool = false) {
-        self.settings = TimerSettings(workDurationSec: workDurationSec, breakDurationSec: breakDurationSec, autoStartNext: autoStartNext)
+    init(
+        workDurationSec: Int,
+        breakDurationSec: Int,
+        autoStartNext: Bool = false,
+        autoUpdatesEnabled: Bool = false
+    ) {
+        self.settings = TimerSettings(
+            workDurationSec: workDurationSec,
+            breakDurationSec: breakDurationSec,
+            autoStartNext: autoStartNext,
+            autoUpdatesEnabled: autoUpdatesEnabled
+        )
     }
 
     func getOrCreate() throws -> TimerSettings {
@@ -593,6 +821,33 @@ private final class FakeSettingsRepository: SettingsRepository {
         settings.autoStartNext = autoStartNext
         settings.updatedAt = now
         return settings
+    }
+
+    func updateAutoUpdatesEnabled(_ autoUpdatesEnabled: Bool, at now: Date) throws -> TimerSettings {
+        settings.autoUpdatesEnabled = autoUpdatesEnabled
+        settings.updatedAt = now
+        return settings
+    }
+}
+
+private final class FakeUpdateService: UpdateService {
+    var isAutoUpdateSupported: Bool
+    private(set) var lastSetAutomaticChecksEnabled: Bool?
+    private(set) var checkForUpdatesCallCount: Int = 0
+    private let checkResult: UpdateCheckResult
+
+    init(isAutoUpdateSupported: Bool, checkResult: UpdateCheckResult = .checking) {
+        self.isAutoUpdateSupported = isAutoUpdateSupported
+        self.checkResult = checkResult
+    }
+
+    func setAutomaticChecksEnabled(_ isEnabled: Bool) {
+        lastSetAutomaticChecksEnabled = isEnabled
+    }
+
+    func checkForUpdates() async -> UpdateCheckResult {
+        checkForUpdatesCallCount += 1
+        return checkResult
     }
 }
 

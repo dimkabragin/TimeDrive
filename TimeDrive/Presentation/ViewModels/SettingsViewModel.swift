@@ -6,6 +6,10 @@ final class SettingsViewModel: ObservableObject {
     @Published var workDurationMinutes: Int = 25
     @Published var breakDurationMinutes: Int = 5
     @Published var autoStartNext: Bool = false
+    @Published var autoUpdatesEnabled: Bool = false
+    @Published var areAutoUpdatesAvailable: Bool = false
+    @Published var isCheckingForUpdates: Bool = false
+    @Published var updatesStatusMessage: String?
     @Published var syncStatus = SyncStatusSnapshot(
         isOnlinePlaceholder: false,
         pendingOperations: 0,
@@ -18,6 +22,7 @@ final class SettingsViewModel: ObservableObject {
     private let syncRepository: SyncRepository
     private let timerUseCases: TimerUseCases
     private let syncEngine: SyncEngine
+    private let updateService: UpdateService
     private static let lastSyncFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -29,12 +34,14 @@ final class SettingsViewModel: ObservableObject {
         settingsRepository: SettingsRepository,
         syncRepository: SyncRepository,
         timerUseCases: TimerUseCases,
-        syncEngine: SyncEngine
+        syncEngine: SyncEngine,
+        updateService: UpdateService
     ) {
         self.settingsRepository = settingsRepository
         self.syncRepository = syncRepository
         self.timerUseCases = timerUseCases
         self.syncEngine = syncEngine
+        self.updateService = updateService
     }
 
     func load() {
@@ -43,6 +50,14 @@ final class SettingsViewModel: ObservableObject {
             workDurationMinutes = max(1, settings.workDurationSec / 60)
             breakDurationMinutes = max(1, settings.breakDurationSec / 60)
             autoStartNext = settings.autoStartNext
+            autoUpdatesEnabled = settings.autoUpdatesEnabled
+            areAutoUpdatesAvailable = updateService.isAutoUpdateSupported
+            updateService.setAutomaticChecksEnabled(autoUpdatesEnabled)
+            if !areAutoUpdatesAvailable {
+                updatesStatusMessage = String(localized: "settings.updates.notAvailable")
+            } else if updatesStatusMessage == nil {
+                updatesStatusMessage = String(localized: "settings.updates.status.idle")
+            }
 
             let pending = try syncRepository.pendingOperations().count
             let lastSyncText = formatLastSync(syncEngine.lastSyncAt())
@@ -74,6 +89,41 @@ final class SettingsViewModel: ObservableObject {
             load()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func saveAutoUpdatesEnabled() {
+        do {
+            _ = try timerUseCases.updateAutoUpdatesEnabled(autoUpdatesEnabled)
+            updateService.setAutomaticChecksEnabled(autoUpdatesEnabled)
+            load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func checkForUpdatesNow() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        updatesStatusMessage = String(localized: "settings.updates.checking")
+
+        _Concurrency.Task { @MainActor in
+            defer {
+                isCheckingForUpdates = false
+            }
+
+            let result = await updateService.checkForUpdates()
+            switch result {
+            case .checking:
+                updatesStatusMessage = String(localized: "settings.updates.checking")
+            case .unavailable:
+                updatesStatusMessage = String(localized: "settings.updates.notAvailable")
+            case .failed(let message):
+                updatesStatusMessage = String(
+                    format: String(localized: "settings.updates.status.failedFormat"),
+                    message
+                )
+            }
         }
     }
 

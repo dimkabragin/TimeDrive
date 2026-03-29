@@ -11,3 +11,4 @@ TimeDrive.xcodeproj/xcuserdata/
 # Release artifacts
 dist/
 .build-release/
+build/
