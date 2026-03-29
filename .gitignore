@@ -7,3 +7,7 @@ TimeDrive.xcodeproj/xcuserdata/
 
 # VS Code local workspace settings
 .vscode/
+
+# Release artifacts
+dist/
+.build-release/
