@@ -66,7 +66,7 @@ preflight() {
     require_cmd gh
   fi
 
-  if [[ ! -f "${ROOT_DIR}/${PROJECT}" ]]; then
+  if [[ ! -d "${ROOT_DIR}/${PROJECT}" ]]; then
     echo "[ERROR] Project file not found: ${PROJECT}" >&2
     exit 1
   fi
