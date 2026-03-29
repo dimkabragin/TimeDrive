@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag/version (example: v1.0.6)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,6 +17,22 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+      APPCAST_GENERATE: ${{ vars.APPCAST_GENERATE || '1' }}
+      APPCAST_CHANNEL: ${{ vars.APPCAST_CHANNEL || 'stable' }}
+      APPCAST_URL: ${{ vars.APPCAST_URL || format('https://{0}.github.io/{1}/appcast.xml', github.repository_owner, github.event.repository.name) }}
+      SPARKLE_APPCAST_URL: ${{ vars.SPARKLE_APPCAST_URL || vars.APPCAST_URL || format('https://{0}.github.io/{1}/appcast.xml', github.repository_owner, github.event.repository.name) }}
+      SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY || secrets.SPARKLE_PUBLIC_ED_KEY || '' }}
+      APPCAST_BASE_DOWNLOAD_URL: ${{ format('https://github.com/{0}/releases/download/{1}', github.repository, (github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name)) }}
+      RELEASE_NOTES_URL: ${{ format('https://github.com/{0}/releases/tag/{1}', github.repository, (github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name)) }}
+      SPARKLE_SIGN_UPDATE: ${{ vars.SPARKLE_SIGN_UPDATE || '1' }}
+      SPARKLE_EDDSA_SIGNATURE: ${{ secrets.SPARKLE_EDDSA_SIGNATURE }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      SPARKLE_PRIVATE_KEY_B64: ${{ secrets.SPARKLE_PRIVATE_KEY_B64 }}
+      SPARKLE_PRIVATE_KEY_FILE: ${{ vars.SPARKLE_PRIVATE_KEY_FILE || '' }}
+      SPARKLE_SIGN_UPDATE_TOOL: ${{ vars.SPARKLE_SIGN_UPDATE_TOOL || '' }}
+      APPCAST_PUBLISH_MODE: ${{ vars.APPCAST_PUBLISH_MODE || 'pages' }}
 
     steps:
       - name: Checkout repository
@@ -20,3 +42,62 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/release_ci.sh
+
+      - name: Validate release feed publishing mode
+        if: ${{ env.APPCAST_GENERATE == '1' }}
+        run: |
+          set -euo pipefail
+          if [[ "${APPCAST_PUBLISH_MODE}" != "pages" && "${APPCAST_CHANNEL}" == "stable" ]]; then
+            echo "[ERROR] stable/production releases must publish appcast to a public URL."
+            echo "[ERROR] Set APPCAST_PUBLISH_MODE=pages or switch APPCAST_CHANNEL away from stable."
+            exit 1
+          fi
+
+      - name: Upload auto-update feed artifacts
+        if: ${{ env.APPCAST_GENERATE == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: appcast-${{ env.VERSION }}
+          path: |
+            dist/appcast.xml
+            dist/update-metadata.json
+          if-no-files-found: error
+
+      - name: Prepare appcast publish directory
+        if: ${{ env.APPCAST_GENERATE == '1' && env.APPCAST_PUBLISH_MODE == 'pages' }}
+        run: |
+          mkdir -p dist/appcast-publish
+          cp dist/appcast.xml dist/appcast-publish/appcast.xml
+          cp dist/update-metadata.json dist/appcast-publish/update-metadata.json
+          touch dist/appcast-publish/.nojekyll
+
+      - name: Publish appcast to gh-pages
+        if: ${{ env.APPCAST_GENERATE == '1' && env.APPCAST_PUBLISH_MODE == 'pages' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dist/appcast-publish
+
+      - name: Verify public appcast URL availability
+        if: ${{ env.APPCAST_GENERATE == '1' && env.APPCAST_PUBLISH_MODE == 'pages' }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SPARKLE_APPCAST_URL}" ]]; then
+            echo "[ERROR] SPARKLE_APPCAST_URL is required for public appcast verification."
+            exit 1
+          fi
+
+          tmp_file="$(mktemp)"
+          for attempt in {1..12}; do
+            code="$(curl -sS -L -o "${tmp_file}" -w "%{http_code}" "${SPARKLE_APPCAST_URL}" || true)"
+            if [[ "${code}" == "200" ]] && grep -q 'sparkle:edSignature="' "${tmp_file}"; then
+              echo "[INFO] Appcast is publicly available and signed: ${SPARKLE_APPCAST_URL}"
+              exit 0
+            fi
+            echo "[WARN] Appcast not ready yet (attempt ${attempt}/12, HTTP ${code}). Retrying in 10s..."
+            sleep 10
+          done
+
+          echo "[ERROR] Failed to verify signed public appcast at ${SPARKLE_APPCAST_URL}."
+          exit 1
