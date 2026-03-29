@@ -81,7 +81,6 @@ struct TimerDashboardView: View {
             ToolbarItem(placement: .principal) {
                 titleBarModeSlider
             }
-            .sharedBackgroundVisibility(.hidden)
         }
         .toolbar(removing: .title)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)

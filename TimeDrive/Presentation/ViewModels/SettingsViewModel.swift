@@ -82,7 +82,7 @@ final class SettingsViewModel: ObservableObject {
         isSyncingNow = true
         errorMessage = nil
 
-        Swift.Task { @MainActor in
+        _Concurrency.Task { @MainActor in
             defer {
                 isSyncingNow = false
             }
