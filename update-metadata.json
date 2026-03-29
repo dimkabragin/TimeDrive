@@ -1,0 +1,12 @@
+{
+  "version": "1.0.6",
+  "tag": "v1.0.6",
+  "channel": "stable",
+  "artifact_name": "TimeDrive.zip",
+  "artifact_url": "https://github.com/dimkabragin/TimeDrive/releases/download/v1.0.6/TimeDrive.zip",
+  "sha256": "5e62ea005083d3ef27253704d92f765e971338f9890b8653ad8e0edca63d60f5",
+  "size": 5445538,
+  "release_notes_url": "https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.6",
+  "appcast_url": "https://dimkabragin.github.io/TimeDrive/appcast.xml",
+  "sparkle_signature": "SMOKE_TEST_SIGNATURE"
+}
