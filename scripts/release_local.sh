@@ -239,9 +239,7 @@ resolve_sparkle_sign_update_tool() {
     fi
   done
 
-  echo "[ERROR] SPARKLE_SIGN_UPDATE=1 requires Sparkle sign_update tool, but it was not found." >&2
-  echo "[ERROR] Install Sparkle tools or set SPARKLE_SIGN_UPDATE_TOOL=<absolute path to sign_update>." >&2
-  exit 1
+  return 1
 }
 
 resolve_sparkle_private_key_file() {
@@ -284,12 +282,34 @@ resolve_sparkle_private_key_file() {
 
 compute_sparkle_signature() {
   local archive_path="$1"
-  local sign_tool key_file output signature
+  local sign_tool key_file output signature sparkle_checkout
 
-  sign_tool="$(resolve_sparkle_sign_update_tool)"
   key_file="$(resolve_sparkle_private_key_file)"
 
-  if ! output="$(${sign_tool} "${archive_path}" "${key_file}" 2>&1)"; then
+  if sign_tool="$(resolve_sparkle_sign_update_tool)"; then
+    if ! output="$(${sign_tool} "${archive_path}" "${key_file}" 2>&1)"; then
+      echo "[ERROR] Sparkle signing failed for ${archive_path}." >&2
+      echo "[ERROR] sign_update output:" >&2
+      printf '%s\n' "${output}" >&2
+      exit 1
+    fi
+  else
+    sparkle_checkout="${DERIVED_DATA_DIR}/SourcePackages/checkouts/Sparkle"
+    if [[ ! -d "${sparkle_checkout}" ]]; then
+      echo "[ERROR] SPARKLE_SIGN_UPDATE=1 requires Sparkle sign_update tool, but it was not found." >&2
+      echo "[ERROR] Install Sparkle tools or set SPARKLE_SIGN_UPDATE_TOOL=<absolute path to sign_update>." >&2
+      exit 1
+    fi
+
+    if ! output="$(swift run --package-path "${sparkle_checkout}" --configuration release sign_update "${archive_path}" "${key_file}" 2>&1)"; then
+      echo "[ERROR] Sparkle signing via swift run failed for ${archive_path}." >&2
+      echo "[ERROR] swift run sign_update output:" >&2
+      printf '%s\n' "${output}" >&2
+      exit 1
+    fi
+  fi
+
+  if [[ -z "${output}" ]]; then
     echo "[ERROR] Sparkle signing failed for ${archive_path}." >&2
     echo "[ERROR] sign_update output:" >&2
     printf '%s\n' "${output}" >&2
