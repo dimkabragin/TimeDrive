@@ -27,6 +27,7 @@ BUILD_PRODUCTS_DIR="${DERIVED_DATA_DIR}/Build/Products/${CONFIGURATION}"
 APP_NAME="TimeDrive.app"
 APP_PATH_BUILT="${BUILD_PRODUCTS_DIR}/${APP_NAME}"
 APP_PATH_DIST="${DIST_DIR}/${APP_NAME}"
+XCODEBUILD_LOG="${BUILD_DIR}/xcodebuild.log"
 ZIP_PATH="${DIST_DIR}/TimeDrive.zip"
 DMG_PATH="${DIST_DIR}/TimeDrive.dmg"
 SHA_PATH="${DIST_DIR}/SHA256SUMS.txt"
@@ -84,15 +85,21 @@ validate_scheme() {
 build_app() {
   echo "[INFO] Building ${SCHEME} (${CONFIGURATION})..."
   rm -rf "${BUILD_DIR}" "${DIST_DIR}"
-  mkdir -p "${DIST_DIR}"
+  mkdir -p "${DIST_DIR}" "${BUILD_DIR}"
 
-  xcodebuild \
+  if ! xcodebuild \
     -project "${ROOT_DIR}/${PROJECT}" \
     -scheme "${SCHEME}" \
     -configuration "${CONFIGURATION}" \
     -derivedDataPath "${DERIVED_DATA_DIR}" \
-    -destination 'platform=macOS' \
-    build >/dev/null
+    -destination 'generic/platform=macOS' \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_REQUIRED=NO \
+    build >"${XCODEBUILD_LOG}" 2>&1; then
+    echo "[ERROR] xcodebuild failed (exit 65). Log: ${XCODEBUILD_LOG}" >&2
+    tail -n 200 "${XCODEBUILD_LOG}" >&2 || true
+    exit 65
+  fi
 
   if [[ ! -d "${APP_PATH_BUILT}" ]]; then
     echo "[ERROR] Built app not found at ${APP_PATH_BUILT}" >&2
