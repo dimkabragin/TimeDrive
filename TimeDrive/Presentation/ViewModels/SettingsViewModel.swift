@@ -53,7 +53,7 @@ final class SettingsViewModel: ObservableObject {
             workDurationMinutes = max(1, settings.workDurationSec / 60)
             breakDurationMinutes = max(1, settings.breakDurationSec / 60)
             autoStartNext = settings.autoStartNext
-            autoUpdatesEnabled = settings.autoUpdatesEnabled
+            autoUpdatesEnabled = settings.autoUpdatesEnabled ?? false
             areAutoUpdatesAvailable = updateService.isAutoUpdateSupported
             updateService.setAutomaticChecksEnabled(autoUpdatesEnabled)
             if !areAutoUpdatesAvailable {

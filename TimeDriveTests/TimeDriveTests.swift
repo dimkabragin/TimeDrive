@@ -550,6 +550,21 @@ struct TimeDriveTests {
 
     @MainActor
     @Test
+    func settingsRepository_getOrCreate_backfillsNilAutoUpdatesEnabled() throws {
+        let context = makeInMemoryModelContext()
+        let syncRepository = SwiftDataSyncRepository(modelContext: context)
+        let repository = SwiftDataSettingsRepository(modelContext: context, syncRepository: syncRepository)
+
+        let legacyLikeSettings = TimerSettings(autoUpdatesEnabled: nil)
+        context.insert(legacyLikeSettings)
+        try context.save()
+
+        let loaded = try repository.getOrCreate()
+        #expect(loaded.autoUpdatesEnabled == false)
+    }
+
+    @MainActor
+    @Test
     func settingsViewModel_saveAutoUpdatesEnabled_updatesRepositoryAndService() throws {
         let taskRepository = FakeTaskRepository()
         let timerRepository = FakeTimerRepository()

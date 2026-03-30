@@ -56,7 +56,7 @@ final class AppContainer {
         )
         self.timerUseCases = TimerUseCases(taskRepository: taskRepository, timerRepository: timerRepository, settingsRepository: settingsRepository)
         self.updateService = SparkleUpdateService()
-        let isAutoUpdatesEnabled = (try? settingsRepository.getOrCreate().autoUpdatesEnabled) ?? false
+        let isAutoUpdatesEnabled = (try? settingsRepository.getOrCreate().autoUpdatesEnabled ?? false) ?? false
         self.updateService.setAutomaticChecksEnabled(isAutoUpdatesEnabled)
     }
 }

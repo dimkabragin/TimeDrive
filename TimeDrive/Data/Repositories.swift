@@ -300,6 +300,11 @@ final class SwiftDataSettingsRepository: SettingsRepository {
     func getOrCreate() throws -> TimerSettings {
         let descriptor = FetchDescriptor<TimerSettings>()
         if let existing = try modelContext.fetch(descriptor).first {
+            if existing.autoUpdatesEnabled == nil {
+                existing.autoUpdatesEnabled = false
+                existing.updatedAt = .now
+                try modelContext.save()
+            }
             return existing
         }
         let settings = TimerSettings()

@@ -122,7 +122,7 @@ final class TimerSettings {
     var workDurationSec: Int
     var breakDurationSec: Int
     var autoStartNext: Bool
-    var autoUpdatesEnabled: Bool
+    var autoUpdatesEnabled: Bool?
     var updatedAt: Date
 
     init(
@@ -130,7 +130,7 @@ final class TimerSettings {
         workDurationSec: Int = 25 * 60,
         breakDurationSec: Int = 5 * 60,
         autoStartNext: Bool = false,
-        autoUpdatesEnabled: Bool = false,
+        autoUpdatesEnabled: Bool? = false,
         updatedAt: Date = .now
     ) {
         self.id = id
