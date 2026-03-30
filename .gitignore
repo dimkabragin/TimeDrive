@@ -12,3 +12,9 @@ TimeDrive.xcodeproj/xcuserdata/
 dist/
 .build-release/
 build/
+
+# Local release env/log files (must stay local)
+.env.release.config.local
+.env.release.local
+.env.release.secrets.local
+release_local_run.log

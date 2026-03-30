@@ -17,6 +17,7 @@ struct TimeDriveApp: App {
     let appContainer: AppContainer
 
     init() {
+        Self.logTestEnvironmentIfNeeded()
         let modelContainer = Self.makeSharedModelContainer()
         self.sharedModelContainer = modelContainer
         self.appContainer = AppContainer(modelContext: modelContainer.mainContext)
@@ -44,13 +45,36 @@ struct TimeDriveApp: App {
             TimeEvent.self,
             SyncOperation.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let isTestRun = isRunningTests()
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: isTestRun)
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
+            #if DEBUG
+            print("[TimeDrive][Bootstrap] ModelContainer init failed. isTestRun=\(isTestRun), error=\(error)")
+            #endif
             fatalError("Could not create ModelContainer: \(error)")
         }
+    }
+
+    private static func isRunningTests() -> Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    private static func isRunningUITests() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let arguments = ProcessInfo.processInfo.arguments
+        return environment["TIMEDRIVE_UI_TESTING"] == "1" || arguments.contains("-ui-testing")
+    }
+
+    private static func logTestEnvironmentIfNeeded() {
+        #if DEBUG
+        if isRunningTests() || isRunningUITests() {
+            let env = ProcessInfo.processInfo.environment
+            print("[TimeDrive][Bootstrap] testMode=1 uiTest=\(isRunningUITests()) hasXCTestConfig=\(env["XCTestConfigurationFilePath"] != nil)")
+        }
+        #endif
     }
 }
 
@@ -129,10 +153,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func applyMenuBarOnlyActivationPolicy() {
+        if Self.isRunningUITests() {
+            debugLog("applyMenuBarOnlyActivationPolicy(): skipped for UI tests")
+            return
+        }
         if NSApp.activationPolicy() != .accessory {
             let success = NSApp.setActivationPolicy(.accessory)
             debugLog("applyMenuBarOnlyActivationPolicy(): success=\(success)")
         }
+    }
+
+    private static func isRunningUITests() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let arguments = ProcessInfo.processInfo.arguments
+        return environment["TIMEDRIVE_UI_TESTING"] == "1" || arguments.contains("-ui-testing")
     }
 
     private func configureStatusItem() {
