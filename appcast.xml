@@ -2,18 +2,18 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>TimeDrive Updates</title>
-    <link>https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.6</link>
+    <link>https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.7</link>
     <description>TimeDrive release feed</description>
     <language>en</language>
     <item>
-      <title>TimeDrive 1.0.6</title>
-      <pubDate>Sun, 29 Mar 2026 18:33:39 +0000</pubDate>
+      <title>TimeDrive 1.0.7</title>
+      <pubDate>Mon, 30 Mar 2026 04:25:01 +0000</pubDate>
       <sparkle:channel>stable</sparkle:channel>
-      <sparkle:version>1.0.6</sparkle:version>
-      <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
-      <enclosure url="https://github.com/dimkabragin/TimeDrive/releases/download/v1.0.6/TimeDrive.zip" length="5445538" type="application/octet-stream" sparkle:edSignature="SMOKE_TEST_SIGNATURE" />
-      <sparkle:releaseNotesLink>https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.6</sparkle:releaseNotesLink>
-      <description><![CDATA[Version 1.0.6 (SHA256: 5e62ea005083d3ef27253704d92f765e971338f9890b8653ad8e0edca63d60f5)]]></description>
+      <sparkle:version>1.0.7</sparkle:version>
+      <sparkle:shortVersionString>1.0.7</sparkle:shortVersionString>
+      <enclosure url="https://github.com/dimkabragin/TimeDrive/releases/download/v1.0.7/TimeDrive.zip" length="6452772" type="application/octet-stream" sparkle:edSignature="SMOKE_TEST_SIGNATURE" />
+      <sparkle:releaseNotesLink>https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.7</sparkle:releaseNotesLink>
+      <description><![CDATA[Version 1.0.7 (SHA256: 6e76a05bf6a8f08ed0c14104526b9e146dd2e52f64bc31492b44bdb0432beb00)]]></description>
     </item>
   </channel>
 </rss>
