@@ -495,6 +495,9 @@ package_artifacts() {
   mkdir -p "${dmg_src}"
   ditto "${APP_PATH_DIST}" "${dmg_src}/${APP_NAME}"
 
+  rm -f "${dmg_src}/Applications"
+  ln -s /Applications "${dmg_src}/Applications"
+
   hdiutil create \
     -volname "TimeDrive ${VERSION}" \
     -srcfolder "${dmg_src}" \

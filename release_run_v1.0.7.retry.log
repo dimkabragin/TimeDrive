@@ -1,0 +1,34 @@
+[INFO] Running preflight checks...
+[INFO] Building TimeDrive (Release)...
+[INFO] Built app Info.plist validation passed (SUFeedURL, SUPublicEDKey).
+[INFO] Packaging artifacts...
+[INFO] Generating update metadata and appcast...
+[INFO] SPARKLE_SIGN_UPDATE=1. Computing EdDSA signature from key material...
+
+========== Release summary ==========
+Version:         v1.0.7
+App version:     1.0.7
+Scheme:          TimeDrive
+Configuration:   Release
+Publish:         1
+Force mismatch:  0
+Dist directory:  /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist
+Appcast generate:1
+Appcast URL:     https://dimkabragin.github.io/TimeDrive/appcast.xml
+Channel:         stable
+Sign update:     1
+Artifacts:
+-rw-r--r--@ 1 DimkaBragin  staff   1.2K Mar 30 11:26 /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/appcast.xml
+-rw-r--r--@ 1 DimkaBragin  staff   160B Mar 30 11:26 /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/SHA256SUMS.txt
+-rw-r--r--@ 1 DimkaBragin  staff   6.5M Mar 30 11:26 /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/TimeDrive.dmg
+-rw-r--r--@ 1 DimkaBragin  staff   6.2M Mar 30 11:26 /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/TimeDrive.zip
+-rw-r--r--@ 1 DimkaBragin  staff   577B Mar 30 11:26 /Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/update-metadata.json
+
+/Users/DimkaBragin/Documents/Code Projects/TimeDrive/TimeDrive/dist/TimeDrive.app:
+total 0
+drwxr-xr-x@ 7 DimkaBragin  staff   224B Mar 30 11:26 Contents
+=====================================
+
+[INFO] Publishing release v1.0.7 with gh...
+[INFO] GitHub release v1.0.7 is published/updated.
+[INFO] Release pipeline completed successfully.

@@ -23,6 +23,8 @@
 - `appcast.xml` (если `APPCAST_GENERATE=1`)
 - `update-metadata.json` (если `APPCAST_GENERATE=1`)
 
+`TimeDrive.dmg` содержит `TimeDrive.app` и ссылку `Applications` для установки drag-and-drop.
+
 ## Параметры `release_local.sh`
 
 ### Общие
