@@ -1,12 +1,12 @@
 {
-  "version": "1.0.10",
-  "tag": "v1.0.10",
+  "version": "1.0.11",
+  "tag": "v1.0.11",
   "channel": "stable",
   "artifact_name": "TimeDrive.zip",
-  "artifact_url": "https://github.com/dimkabragin/TimeDrive/releases/download/v1.0.10/TimeDrive.zip",
-  "sha256": "7a94ce1adafd7002b156b077ab5f92b7284dd928259e6dc1a05ff6379900f4f5",
+  "artifact_url": "https://github.com/dimkabragin/TimeDrive/releases/download/v1.0.11/TimeDrive.zip",
+  "sha256": "89ba2473fb679b51489f85da9f527da46608ab826adebc851965a62515f271d8",
   "size": 6587913,
-  "release_notes_url": "https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.10",
+  "release_notes_url": "https://github.com/dimkabragin/TimeDrive/releases/tag/v1.0.11",
   "appcast_url": "https://dimkabragin.github.io/TimeDrive/appcast.xml",
-  "sparkle_signature": "gmp2rJNX4uZKEYLvaBuKMTsozwLDbq5mnbpnUhu7ka4Zd3GdERz55iwL0BrtDfWb70PgFDTF6g4OZ7P7xUgsAw=="
+  "sparkle_signature": "34HSLSsi4Z1sMzXeuAx4LiNIumL74ky3qIfKkZQsuzQBmN0H8FELfw+gj5GCsI3UV9sxnOJn8rCNovu50KU5Ag=="
 }
